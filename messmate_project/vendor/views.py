@@ -282,3 +282,13 @@ def respond_complaint(request, complaint_id):
         complaint.save()
         messages.success(request, f"Complaint #{complaint.id} marked as RESOLVED with response.")
     return redirect('vendor_dashboard')
+
+
+@login_required(login_url='login')
+def subscriptions(request):
+    if request.user.role != 'vendor':
+        return redirect('login')
+        
+    messes = Mess.objects.filter(vendor=request.user)
+    vendor_subscriptions = Subscription.objects.filter(mess__in=messes).order_by('-start_date')
+    return render(request, 'vendor/subscriptions.html', {'subscriptions': vendor_subscriptions})

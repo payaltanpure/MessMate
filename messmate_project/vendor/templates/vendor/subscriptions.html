@@ -1,0 +1,73 @@
+{% extends "base.html" %}
+
+{% block title %}Manage Subscriptions - SMARTMESS AI{% endblock %}
+
+{% block content %}
+<div class="container py-4">
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <h1 class="h3"><i class="bi bi-calendar-check me-2 text-primary"></i>Customer Subscriptions</h1>
+    </div>
+
+    <div class="card glass-card border-0 p-4">
+        {% if subscriptions %}
+        <div class="table-responsive">
+            <table class="table align-middle">
+                <thead>
+                    <tr>
+                        <th>Student Details</th>
+                        <th>Mess</th>
+                        <th>Plan Type</th>
+                        <th>Duration</th>
+                        <th>Amount Paid</th>
+                        <th>Status</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for sub in subscriptions %}
+                    <tr>
+                        <td>
+                            <div class="d-flex align-items-center gap-2">
+                                <div class="bg-primary-subtle text-primary rounded-circle d-flex justify-content-center align-items-center" style="width:36px; height:36px;">
+                                    <i class="bi bi-person-fill"></i>
+                                </div>
+                                <div>
+                                    <span class="fw-bold d-block">{{ sub.student.first_name|default:sub.student.username }}</span>
+                                    <span class="small text-secondary">{{ sub.student.email }}</span>
+                                </div>
+                            </div>
+                        </td>
+                        <td>{{ sub.mess.mess_name }}</td>
+                        <td>
+                            <span class="badge bg-secondary-subtle text-secondary text-capitalize">
+                                <i class="bi bi-bookmark me-1"></i> {{ sub.get_plan_type_display }}
+                            </span>
+                        </td>
+                        <td>
+                            <span class="d-block small">Start: {{ sub.start_date|date:"d M Y" }}</span>
+                            <span class="d-block small">End: {{ sub.end_date|date:"d M Y" }}</span>
+                        </td>
+                        <td class="fw-bold text-success">Rs. {{ sub.price_paid }}</td>
+                        <td>
+                            <span class="badge 
+                                {% if sub.status == 'active' %}bg-success-subtle text-success
+                                {% elif sub.status == 'paused' %}bg-warning-subtle text-warning
+                                {% elif sub.status == 'cancelled' %}bg-danger-subtle text-danger
+                                {% else %}bg-secondary-subtle text-secondary{% endif %} px-2 py-1 rounded text-capitalize">
+                                {{ sub.status }}
+                            </span>
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+        {% else %}
+        <div class="text-center py-5">
+            <i class="bi bi-person-x fs-1 text-secondary opacity-50 mb-3"></i>
+            <h3 class="h5 text-secondary">No Subscriptions Yet</h3>
+            <p class="text-secondary small">Students who subscribe to your messes will appear here.</p>
+        </div>
+        {% endif %}
+    </div>
+</div>
+{% endblock %}

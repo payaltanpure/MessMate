@@ -18,6 +18,7 @@ urlpatterns = [
     
     path('earnings/', views.earnings, name='vendor_earnings'),
     path('profile/', views.profile, name='vendor_profile'),
+    path('subscriptions/', views.subscriptions, name='vendor_subscriptions'),
     
     path('complaint/respond/<int:complaint_id>/', views.respond_complaint, name='respond_complaint'),
 ]
