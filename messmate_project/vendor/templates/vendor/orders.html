@@ -1,0 +1,79 @@
+{% extends "base.html" %}
+
+{% block title %}Manage Orders - SMARTMESS AI{% endblock %}
+
+{% block content %}
+<div class="container py-4">
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <h1 class="h3"><i class="bi bi-journal-text me-2 text-primary"></i>Customer Orders</h1>
+    </div>
+
+    <div class="card glass-card border-0 p-4">
+        {% if orders %}
+        <div class="table-responsive">
+            <table class="table align-middle">
+                <thead>
+                    <tr>
+                        <th>Order ID</th>
+                        <th>Date & Time</th>
+                        <th>Student</th>
+                        <th>Mess</th>
+                        <th>Total Amount</th>
+                        <th>Status</th>
+                        <th>Action</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for order in orders %}
+                    <tr>
+                        <td><span class="fw-bold">#{{ order.id }}</span></td>
+                        <td>{{ order.order_date|date:"d M, h:i A" }}</td>
+                        <td>
+                            <div class="d-flex align-items-center gap-2">
+                                <div class="bg-primary-subtle text-primary rounded-circle d-flex justify-content-center align-items-center" style="width:32px; height:32px;">
+                                    <i class="bi bi-person"></i>
+                                </div>
+                                <span>{{ order.student.first_name|default:order.student.username }}</span>
+                            </div>
+                        </td>
+                        <td>{{ order.mess.mess_name }}</td>
+                        <td class="fw-bold text-success">Rs. {{ order.total_amount }}</td>
+                        <td>
+                            <span class="badge 
+                                {% if order.status == 'delivered' %}bg-success-subtle text-success
+                                {% elif order.status == 'pending' %}bg-warning-subtle text-warning
+                                {% elif order.status == 'cancelled' %}bg-danger-subtle text-danger
+                                {% else %}bg-info-subtle text-info{% endif %} px-2 py-1 rounded">
+                                {{ order.get_status_display }}
+                            </span>
+                        </td>
+                        <td>
+                            <!-- Status Update Form -->
+                            <form method="POST" action="{% url 'update_order_status' order.id %}" class="d-flex gap-2">
+                                {% csrf_token %}
+                                <select name="status" class="form-select form-select-sm rounded-pill bg-body-tertiary" style="width: auto;">
+                                    <option value="pending" {% if order.status == 'pending' %}selected{% endif %}>Pending</option>
+                                    <option value="accepted" {% if order.status == 'accepted' %}selected{% endif %}>Accepted</option>
+                                    <option value="preparing" {% if order.status == 'preparing' %}selected{% endif %}>Preparing</option>
+                                    <option value="out_for_delivery" {% if order.status == 'out_for_delivery' %}selected{% endif %}>Out for Delivery</option>
+                                    <option value="delivered" {% if order.status == 'delivered' %}selected{% endif %}>Delivered</option>
+                                    <option value="cancelled" {% if order.status == 'cancelled' %}selected{% endif %}>Cancelled</option>
+                                </select>
+                                <button type="submit" class="btn btn-sm btn-outline-primary rounded-pill">Update</button>
+                            </form>
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+        {% else %}
+        <div class="text-center py-5">
+            <i class="bi bi-inbox fs-1 text-secondary opacity-50 mb-3"></i>
+            <h3 class="h5 text-secondary">No Orders Yet</h3>
+            <p class="text-secondary small">When students place tiffin orders, they will appear here.</p>
+        </div>
+        {% endif %}
+    </div>
+</div>
+{% endblock %}

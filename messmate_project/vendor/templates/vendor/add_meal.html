@@ -1,0 +1,59 @@
+{% extends "base.html" %}
+
+{% block title %}Add Meal - SMARTMESS AI{% endblock %}
+
+{% block content %}
+<div class="container py-4">
+    <div class="row justify-content-center">
+        <div class="col-lg-8">
+            <div class="card glass-card border-0 p-4">
+                <div class="d-flex align-items-center mb-4">
+                    <a href="{% url 'manage_meals' mess.id %}" class="btn btn-sm btn-outline-secondary rounded-circle me-3" style="width:32px; height:32px; padding:0; display:flex; align-items:center; justify-content:center;">
+                        <i class="bi bi-arrow-left"></i>
+                    </a>
+                    <h1 class="h3 mb-0"><i class="bi bi-egg-fried gradient-text me-2"></i>Add Meal to {{ mess.mess_name }}</h1>
+                </div>
+
+                <form method="POST">
+                    {% csrf_token %}
+                    
+                    <div class="row g-3">
+                        <div class="col-md-6">
+                            <label class="form-label small fw-bold">Meal Name / Title</label>
+                            <input type="text" name="name" class="form-control rounded-3 bg-body-tertiary" placeholder="e.g. Special Veg Thali" required>
+                        </div>
+                        <div class="col-md-6">
+                            <label class="form-label small fw-bold">Meal Type</label>
+                            <select name="meal_type" class="form-select rounded-3 bg-body-tertiary" required>
+                                <option value="">Select Type</option>
+                                <option value="breakfast">Breakfast</option>
+                                <option value="lunch">Lunch</option>
+                                <option value="dinner">Dinner</option>
+                            </select>
+                        </div>
+                        
+                        <div class="col-md-12">
+                            <label class="form-label small fw-bold">Menu Items</label>
+                            <textarea name="menu_items" class="form-control rounded-3 bg-body-tertiary" rows="3" placeholder="e.g. 4 Roti, Dal, Paneer Sabzi, Rice, Salad" required></textarea>
+                            <div class="form-text">List the exact contents to help students decide.</div>
+                        </div>
+
+                        <div class="col-md-6">
+                            <label class="form-label small fw-bold">Price per Plate</label>
+                            <div class="input-group">
+                                <span class="input-group-text bg-body-tertiary">Rs.</span>
+                                <input type="number" step="0.01" name="price" class="form-control rounded-3 bg-body-tertiary" placeholder="0.00" required>
+                            </div>
+                        </div>
+                        
+                        <div class="col-12 mt-4 text-end">
+                            <a href="{% url 'manage_meals' mess.id %}" class="btn btn-outline-secondary rounded-pill px-4 me-2">Cancel</a>
+                            <button type="submit" class="btn btn-gradient rounded-pill px-4"><i class="bi bi-save me-1"></i> Add Meal</button>
+                        </div>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

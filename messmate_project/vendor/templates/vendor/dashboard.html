@@ -1,0 +1,63 @@
+{% extends "base.html" %}
+
+{% block title %}Vendor Dashboard - SMARTMESS AI{% endblock %}
+
+{% block content %}
+<div class="container py-4">
+    <!-- Header Greeting -->
+    <div class="row align-items-center mb-5">
+        <div class="col-md-8 d-flex align-items-center gap-4">
+            <div class="bg-primary-subtle text-primary rounded-circle border border-primary shadow d-flex align-items-center justify-content-center" style="width: 80px; height: 80px;">
+                <i class="bi bi-shop fs-2"></i>
+            </div>
+            <div>
+                <h1 class="h2 mb-1">Welcome Vendor, {{ request.user.first_name|default:request.user.username }}!</h1>
+                <p class="text-secondary mb-0">Manage your messes, meals, and orders from here.</p>
+            </div>
+        </div>
+        <div class="col-md-4 text-md-end mt-3 mt-md-0">
+            <a href="{% url 'vendor_profile' %}" class="btn btn-outline-secondary rounded-pill btn-sm me-2"><i class="bi bi-person-badge me-1"></i>Business Profile</a>
+            <a href="{% url 'add_mess' %}" class="btn btn-gradient rounded-pill btn-sm"><i class="bi bi-plus-circle me-1"></i>Add New Mess</a>
+        </div>
+    </div>
+
+    <div class="row g-4">
+        <!-- Main Stats Panel -->
+        <div class="col-lg-12">
+            <div class="card glass-card p-4 border-0 mb-4">
+                <h2 class="h5 mb-4"><i class="bi bi-graph-up-arrow gradient-text me-2"></i>Quick Overview</h2>
+                <div class="row text-center">
+                    <div class="col-md-3 mb-3">
+                        <div class="p-4 bg-body-tertiary rounded-4 border">
+                            <i class="bi bi-shop fs-1 text-primary mb-2 d-block"></i>
+                            <h3 class="fw-bold mb-0">Manage</h3>
+                            <a href="{% url 'manage_mess' %}" class="stretched-link text-decoration-none text-secondary">Your Messes</a>
+                        </div>
+                    </div>
+                    <div class="col-md-3 mb-3">
+                        <div class="p-4 bg-body-tertiary rounded-4 border">
+                            <i class="bi bi-journal-text fs-1 text-success mb-2 d-block"></i>
+                            <h3 class="fw-bold mb-0">Orders</h3>
+                            <a href="{% url 'vendor_orders' %}" class="stretched-link text-decoration-none text-secondary">View Orders</a>
+                        </div>
+                    </div>
+                    <div class="col-md-3 mb-3">
+                        <div class="p-4 bg-body-tertiary rounded-4 border">
+                            <i class="bi bi-cash-stack fs-1 text-warning mb-2 d-block"></i>
+                            <h3 class="fw-bold mb-0">Earnings</h3>
+                            <a href="{% url 'vendor_earnings' %}" class="stretched-link text-decoration-none text-secondary">Revenue</a>
+                        </div>
+                    </div>
+                    <div class="col-md-3 mb-3">
+                        <div class="p-4 bg-body-tertiary rounded-4 border">
+                            <i class="bi bi-people fs-1 text-info mb-2 d-block"></i>
+                            <h3 class="fw-bold mb-0">Students</h3>
+                            <span class="text-secondary">Subscribers</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

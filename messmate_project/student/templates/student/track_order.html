@@ -1,0 +1,92 @@
+{% extends "base.html" %}
+
+{% block title %}Track Order #{{ order.id }} - SMARTMESS AI{% endblock %}
+
+{% block content %}
+<div class="container py-5">
+    <div class="row justify-content-center">
+        <div class="col-md-8">
+            <div class="card glass-card p-5 border-0">
+                <div class="d-flex justify-content-between align-items-center mb-4 border-bottom pb-3">
+                    <div>
+                        <h1 class="h4 mb-1">Order #{{ order.id }}</h1>
+                        <p class="text-secondary small mb-0">From {{ order.mess.mess_name }}</p>
+                    </div>
+                    <span class="badge bg-primary text-uppercase px-3 py-2 rounded-pill">{{ order.get_status_display }}</span>
+                </div>
+
+                <!-- Horizontal Status Progress tracker -->
+                <div class="row text-center mb-5 g-2">
+                    <div class="col-3">
+                        <div class="p-2 rounded {% if order.status != 'cancelled' %}bg-primary-subtle text-primary border border-primary{% else %}bg-secondary-subtle text-secondary{% endif %}">
+                            <i class="bi bi-clock-history fs-4 d-block mb-1"></i>
+                            <span class="small fw-bold">Placed</span>
+                        </div>
+                    </div>
+                    <div class="col-3">
+                        <div class="p-2 rounded {% if order.status == 'preparing' or order.status == 'out_for_delivery' or order.status == 'delivered' %}bg-primary-subtle text-primary border border-primary{% else %}bg-secondary-subtle text-secondary{% endif %}">
+                            <i class="bi bi-egg-fried fs-4 d-block mb-1"></i>
+                            <span class="small fw-bold">Cooking</span>
+                        </div>
+                    </div>
+                    <div class="col-3">
+                        <div class="p-2 rounded {% if order.status == 'out_for_delivery' or order.status == 'delivered' %}bg-primary-subtle text-primary border border-primary{% else %}bg-secondary-subtle text-secondary{% endif %}">
+                            <i class="bi bi-truck fs-4 d-block mb-1"></i>
+                            <span class="small fw-bold">On Way</span>
+                        </div>
+                    </div>
+                    <div class="col-3">
+                        <div class="p-2 rounded {% if order.status == 'delivered' %}bg-success-subtle text-success border border-success{% else %}bg-secondary-subtle text-secondary{% endif %}">
+                            <i class="bi bi-bag-check-fill fs-4 d-block mb-1"></i>
+                            <span class="small fw-bold">Delivered</span>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- OTP & Courier Info -->
+                <div class="row g-4 mb-4">
+                    <div class="col-md-6">
+                        <div class="p-4 bg-warning-subtle text-warning-emphasis border border-warning-subtle rounded-4 text-center">
+                            <span class="small d-block mb-2">Share this OTP with Delivery Boy for verification:</span>
+                            <h2 class="display-6 fw-extrabold letter-spacing-2 mb-0">{{ order.delivery_otp|default:"------" }}</h2>
+                        </div>
+                    </div>
+                    <div class="col-md-6">
+                        <div class="p-4 bg-body-tertiary border rounded-4">
+                            <h3 class="h6 mb-3">Delivery Partner Info</h3>
+                            {% if order.delivery_boy %}
+                                <p class="mb-1 small"><strong>Name:</strong> {{ order.delivery_boy.username }}</p>
+                                <p class="mb-1 small"><strong>Phone:</strong> {{ order.delivery_boy.phone|default:"Not Provided" }}</p>
+                                <p class="mb-0 small"><strong>Vehicle Number:</strong> {{ order.delivery_boy.delivery_profile.vehicle_number }}</p>
+                            {% else %}
+                                <p class="text-secondary small mb-0"><i class="bi bi-info-circle me-1"></i> Waiting for a delivery boy to accept this order...</p>
+                            {% endif %}
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Items Details -->
+                <div class="bg-body-tertiary p-4 rounded-4 border">
+                    <h2 class="h6 text-secondary mb-3">Tiffin Details</h2>
+                    <ul class="list-unstyled mb-0 small">
+                        {% for item in order.items.all %}
+                            <li class="mb-2 d-flex justify-content-between">
+                                <span>{{ item.quantity }}x {{ item.meal.name }}</span>
+                                <span class="text-secondary">Rs. {{ item.price }} each</span>
+                            </li>
+                        {% endfor %}
+                        <li class="border-top pt-2 mt-2 d-flex justify-content-between fw-bold text-primary">
+                            <span>Total Paid:</span>
+                            <span>Rs. {{ order.total_amount }}</span>
+                        </li>
+                    </ul>
+                </div>
+
+                <div class="text-center mt-4">
+                    <a href="{% url 'student_dashboard' %}" class="btn btn-outline-secondary rounded-pill btn-sm"><i class="bi bi-arrow-left me-1"></i>Back to Dashboard</a>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

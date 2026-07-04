@@ -1,0 +1,48 @@
+{% extends "base.html" %}
+{% load crispy_forms_tags %}
+
+{% block title %}SMARTMESS AI - Secure Login{% endblock %}
+
+{% block content %}
+<div class="container py-5">
+    <div class="row justify-content-center">
+        <div class="col-md-5">
+            <div class="card glass-card p-5 border-0">
+                <div class="text-center mb-4">
+                    <i class="bi bi-shield-lock-fill gradient-text display-4 mb-2"></i>
+                    <h1 class="h3 font-family-title">Welcome Back</h1>
+                    <p class="text-secondary small">Access your SMARTMESS AI portal</p>
+                </div>
+                
+                <form method="POST" action="{% url 'login' %}">
+                    {% csrf_token %}
+                    <div class="mb-3">
+                        <label for="username" class="form-label small fw-bold">Username</label>
+                        <div class="input-group">
+                            <span class="input-group-text border-end-0 bg-transparent"><i class="bi bi-person text-secondary"></i></span>
+                            <input type="text" id="username" name="username" class="form-control border-start-0 rounded-end-3" placeholder="Enter username" required>
+                        </div>
+                    </div>
+                    
+                    <div class="mb-4">
+                        <div class="d-flex justify-content-between">
+                            <label for="password" class="form-label small fw-bold">Password</label>
+                            <a href="{% url 'forgot_password' %}" class="small text-decoration-none">Forgot Password?</a>
+                        </div>
+                        <div class="input-group">
+                            <span class="input-group-text border-end-0 bg-transparent"><i class="bi bi-key text-secondary"></i></span>
+                            <input type="password" id="password" name="password" class="form-control border-start-0 rounded-end-3" placeholder="Enter password" required>
+                        </div>
+                    </div>
+                    
+                    <button type="submit" class="btn btn-gradient w-100 rounded-pill py-2">Log In</button>
+                </form>
+                
+                <div class="text-center mt-4">
+                    <p class="text-secondary small mb-0">Don't have an account? <a href="{% url 'register' %}" class="text-decoration-none fw-bold">Sign Up Here</a></p>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

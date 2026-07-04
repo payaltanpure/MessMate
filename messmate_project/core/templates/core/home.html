@@ -1,0 +1,195 @@
+{% extends "base.html" %}
+
+{% block title %}SMARTMESS AI - Discover Best Hostel Messes{% endblock %}
+
+{% block content %}
+<div class="container">
+    
+    <!-- Hero Banner with Outlined Branding -->
+    <div class="row align-items-center mb-5 py-4 rounded-4" style="background: var(--dark-gradient); color: white; border: 1px solid var(--card-glass-border);">
+        <div class="col-lg-7 px-5">
+            <h1 class="display-4 fw-extrabold mb-3">Find the Best Meals <br><span class="gradient-text">On & Around Campus</span></h1>
+            <p class="lead opacity-75">AI-powered subscription dining, daily tiffin delivery, and automated reviews for hostel students.</p>
+            <form method="GET" action="{% url 'home' %}" class="d-flex gap-2 mt-4 bg-white p-2 rounded-pill shadow">
+                <input type="text" name="q" value="{{ query }}" class="form-control border-0 bg-transparent px-4" placeholder="Search mess name, description or food items..." style="box-shadow: none;">
+                <button type="submit" class="btn btn-gradient rounded-pill px-4">Search</button>
+            </form>
+        </div>
+        <div class="col-lg-5 text-center d-none d-lg-block">
+            <i class="bi bi-rocket-takeoff text-white opacity-25" style="font-size: 180px;"></i>
+        </div>
+    </div>
+
+    <!-- AI RECOMMENDATION SECTION -->
+    {% if ai_recs.best_mess or ai_recs.best_value or ai_recs.most_popular %}
+    <div class="row mb-5">
+        <div class="col-12">
+            <div class="d-flex align-items-center gap-2 mb-3">
+                <i class="bi bi-stars gradient-text fs-3"></i>
+                <h2 class="h3 mb-0">AI Smart Recommendations</h2>
+            </div>
+            <div class="row g-4">
+                {% if ai_recs.best_mess %}
+                <div class="col-md-4">
+                    <div class="card glass-card h-100 border-warning">
+                        <div class="card-header bg-warning-subtle text-warning border-0 d-flex justify-content-between align-items-center py-3">
+                            <span class="fw-bold"><i class="bi bi-patch-check-fill me-1"></i> Best Match</span>
+                            <span class="badge bg-warning text-dark">AI Ranked #1</span>
+                        </div>
+                        <div class="card-body">
+                            <h3 class="card-title h5">{{ ai_recs.best_mess.mess_name }}</h3>
+                            <p class="card-text text-secondary small">{{ ai_recs.best_mess.description|truncatewords:15 }}</p>
+                            <ul class="list-unstyled small mb-4">
+                                <li class="mb-2"><i class="bi bi-star-fill text-warning me-1"></i> {{ ai_recs.best_mess.average_rating }} Rating</li>
+                                <li class="mb-2"><i class="bi bi-geo-alt-fill text-danger me-1"></i> {{ ai_recs.best_mess.distance }} km away</li>
+                                <li><i class="bi bi-currency-rupee text-success me-1"></i> Rs. {{ ai_recs.best_mess.monthly_price_both }} / month</li>
+                            </ul>
+                            <a href="{% url 'mess_detail' ai_recs.best_mess.id %}" class="btn btn-sm btn-gradient w-100 rounded-pill">View Menu & Subscribe</a>
+                        </div>
+                    </div>
+                </div>
+                {% endif %}
+
+                {% if ai_recs.best_value %}
+                <div class="col-md-4">
+                    <div class="card glass-card h-100 border-success">
+                        <div class="card-header bg-success-subtle text-success border-0 d-flex justify-content-between align-items-center py-3">
+                            <span class="fw-bold"><i class="bi bi-piggy-bank-fill me-1"></i> Best Value</span>
+                            <span class="badge bg-success text-white">Lowest Budget</span>
+                        </div>
+                        <div class="card-body">
+                            <h3 class="card-title h5">{{ ai_recs.best_value.mess_name }}</h3>
+                            <p class="card-text text-secondary small">{{ ai_recs.best_value.description|truncatewords:15 }}</p>
+                            <ul class="list-unstyled small mb-4">
+                                <li class="mb-2"><i class="bi bi-star-fill text-warning me-1"></i> {{ ai_recs.best_value.average_rating }} Rating</li>
+                                <li class="mb-2"><i class="bi bi-geo-alt-fill text-danger me-1"></i> {{ ai_recs.best_value.distance }} km away</li>
+                                <li><i class="bi bi-currency-rupee text-success me-1"></i> Rs. {{ ai_recs.best_value.monthly_price_both }} / month</li>
+                            </ul>
+                            <a href="{% url 'mess_detail' ai_recs.best_value.id %}" class="btn btn-sm btn-gradient w-100 rounded-pill">View Menu & Subscribe</a>
+                        </div>
+                    </div>
+                </div>
+                {% endif %}
+
+                {% if ai_recs.most_popular %}
+                <div class="col-md-4">
+                    <div class="card glass-card h-100 border-info">
+                        <div class="card-header bg-info-subtle text-info border-0 d-flex justify-content-between align-items-center py-3">
+                            <span class="fw-bold"><i class="bi bi-fire me-1"></i> Most Popular</span>
+                            <span class="badge bg-info text-white">Highly Rated</span>
+                        </div>
+                        <div class="card-body">
+                            <h3 class="card-title h5">{{ ai_recs.most_popular.mess_name }}</h3>
+                            <p class="card-text text-secondary small">{{ ai_recs.most_popular.description|truncatewords:15 }}</p>
+                            <ul class="list-unstyled small mb-4">
+                                <li class="mb-2"><i class="bi bi-star-fill text-warning me-1"></i> {{ ai_recs.most_popular.average_rating }} Rating</li>
+                                <li class="mb-2"><i class="bi bi-geo-alt-fill text-danger me-1"></i> {{ ai_recs.most_popular.distance }} km away</li>
+                                <li><i class="bi bi-currency-rupee text-success me-1"></i> Rs. {{ ai_recs.most_popular.monthly_price_both }} / month</li>
+                            </ul>
+                            <a href="{% url 'mess_detail' ai_recs.most_popular.id %}" class="btn btn-sm btn-gradient w-100 rounded-pill">View Menu & Subscribe</a>
+                        </div>
+                    </div>
+                </div>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+    {% endif %}
+
+    <!-- SEARCH & FILTER PANELS -->
+    <div class="row g-4">
+        <!-- Sidebar Filters -->
+        <div class="col-lg-3">
+            <div class="card glass-card p-4">
+                <h2 class="h5 mb-4"><i class="bi bi-sliders me-2"></i>Filters</h2>
+                <form method="GET" action="{% url 'home' %}">
+                    <!-- Diet Preference -->
+                    <div class="mb-3">
+                        <label class="form-label small fw-bold">Food Preference</label>
+                        <select name="diet_type" class="form-select rounded-3">
+                            <option value="all" {% if diet_type == 'all' or not diet_type %}selected{% endif %}>Veg & Non-Veg</option>
+                            <option value="veg" {% if diet_type == 'veg' %}selected{% endif %}>Veg Only</option>
+                            <option value="non-veg" {% if diet_type == 'non-veg' %}selected{% endif %}>Non-Veg Only</option>
+                        </select>
+                    </div>
+
+                    <!-- Max Price -->
+                    <div class="mb-3">
+                        <label class="form-label small fw-bold">Max Monthly Price (Rs.)</label>
+                        <input type="number" name="max_price" value="{{ max_price }}" class="form-control rounded-3" placeholder="e.g. 3500">
+                    </div>
+
+                    <!-- Distance -->
+                    <div class="mb-3">
+                        <label class="form-label small fw-bold">Max Distance (km)</label>
+                        <input type="number" step="0.1" name="max_distance" value="{{ max_distance }}" class="form-control rounded-3" placeholder="e.g. 2.5">
+                    </div>
+
+                    <!-- Min Rating -->
+                    <div class="mb-4">
+                        <label class="form-label small fw-bold">Minimum Rating</label>
+                        <select name="min_rating" class="form-select rounded-3">
+                            <option value="" {% if not min_rating %}selected{% endif %}>Any Rating</option>
+                            <option value="4" {% if min_rating == '4' %}selected{% endif %}>4★ & above</option>
+                            <option value="3" {% if min_rating == '3' %}selected{% endif %}>3★ & above</option>
+                        </select>
+                    </div>
+
+                    <button type="submit" class="btn btn-gradient w-100 rounded-pill mb-2">Apply Filters</button>
+                    <a href="{% url 'home' %}" class="btn btn-outline-secondary w-100 rounded-pill btn-sm">Clear All</a>
+                </form>
+            </div>
+        </div>
+
+        <!-- Mess Results Grid -->
+        <div class="col-lg-9">
+            <h2 class="h4 mb-4">All Active Messes ({{ messes.count }})</h2>
+            {% if messes %}
+                <div class="row g-4">
+                    {% for mess in messes %}
+                        <div class="col-md-6">
+                            <div class="card glass-card h-100">
+                                <div class="position-relative">
+                                    {% if mess.image %}
+                                        <img src="{{ mess.image.url }}" class="card-img-top" alt="{{ mess.mess_name }}" style="height: 180px; object-fit: cover; border-top-left-radius:16px; border-top-right-radius:16px;">
+                                    {% else %}
+                                        <div class="bg-secondary-subtle d-flex align-items-center justify-content-center text-secondary" style="height: 180px; border-top-left-radius:16px; border-top-right-radius:16px;">
+                                            <i class="bi bi-image fs-1 opacity-50"></i>
+                                        </div>
+                                    {% endif %}
+                                    <span class="position-absolute top-0 end-0 m-3 badge {% if mess.diet_type == 'veg' %}bg-success{% elif mess.diet_type == 'non-veg' %}bg-danger{% else %}bg-warning text-dark{% endif %}">
+                                        {{ mess.get_diet_type_display }}
+                                    </span>
+                                </div>
+                                <div class="card-body">
+                                    <div class="d-flex justify-content-between align-items-start mb-2">
+                                        <h3 class="card-title h5 mb-0">{{ mess.mess_name }}</h3>
+                                        <span class="badge bg-warning-subtle text-dark border border-warning px-2 py-1 rounded">
+                                            <i class="bi bi-star-fill me-1"></i> {{ mess.average_rating|default:"0.0" }}
+                                        </span>
+                                    </div>
+                                    <p class="card-text text-secondary small">{{ mess.description|truncatewords:20 }}</p>
+                                    <hr>
+                                    <div class="row g-2 text-secondary small mb-3">
+                                        <div class="col-6"><i class="bi bi-geo-alt me-1"></i> {{ mess.distance }} km away</div>
+                                        <div class="col-6 text-end"><i class="bi bi-house me-1"></i> {{ mess.location_name }}</div>
+                                        <div class="col-6"><i class="bi bi-currency-rupee me-1"></i> Tiffin: Rs. {{ mess.daily_tiffin_price }}</div>
+                                        <div class="col-6 text-end"><i class="bi bi-calendar-check me-1"></i> Subs: Rs. {{ mess.monthly_price_both }}</div>
+                                    </div>
+                                    <a href="{% url 'mess_detail' mess.id %}" class="btn btn-outline-primary w-100 rounded-pill btn-sm">Explore Menu & Plans</a>
+                                </div>
+                            </div>
+                        </div>
+                    {% endfor %}
+                </div>
+            {% else %}
+                <div class="text-center py-5 glass-card">
+                    <i class="bi bi-exclamation-triangle fs-1 text-warning mb-3"></i>
+                    <p class="lead text-secondary">No messes match your search query or active filters.</p>
+                    <a href="{% url 'home' %}" class="btn btn-gradient rounded-pill px-4 btn-sm">Show All</a>
+                </div>
+            {% endif %}
+        </div>
+    </div>
+</div>
+{% endblock %}

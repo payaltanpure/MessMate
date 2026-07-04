@@ -1,0 +1,200 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>MessMate | Smart Mess Management</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+
+    <!-- Google Font -->
+    <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;600;700&display=swap" rel="stylesheet">
+
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+            font-family: 'Poppins', sans-serif;
+        }
+
+        body {
+            background: #f4f6f9;
+        }
+
+        /* NAVBAR */
+        .navbar {
+            background: #0f172a;
+            padding: 15px 40px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            color: white;
+        }
+
+        .navbar h2 {
+            font-weight: 600;
+        }
+
+        .nav-links a {
+            color: white;
+            text-decoration: none;
+            margin-left: 20px;
+            font-weight: 500;
+            transition: 0.3s;
+        }
+
+        .nav-links a:hover {
+            color: #38bdf8;
+        }
+
+        /* HERO SECTION */
+        .hero {
+            height: 85vh;
+            background: linear-gradient(to right, #1e293b, #334155);
+            color: white;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            text-align: center;
+            padding: 20px;
+        }
+
+        .hero h1 {
+            font-size: 50px;
+            margin-bottom: 20px;
+        }
+
+        .hero p {
+            font-size: 18px;
+            margin-bottom: 30px;
+            max-width: 600px;
+        }
+
+        .hero-buttons a {
+            text-decoration: none;
+            padding: 12px 25px;
+            border-radius: 30px;
+            margin: 10px;
+            font-weight: 500;
+            transition: 0.3s;
+        }
+
+        .btn-login {
+            background: #38bdf8;
+            color: white;
+        }
+
+        .btn-register {
+            background: white;
+            color: #1e293b;
+        }
+
+        .hero-buttons a:hover {
+            transform: scale(1.05);
+        }
+
+        /* FEATURES */
+        .features {
+            padding: 60px 40px;
+            text-align: center;
+        }
+
+        .features h2 {
+            margin-bottom: 40px;
+            font-size: 32px;
+        }
+
+        .feature-container {
+            display: flex;
+            justify-content: center;
+            gap: 30px;
+            flex-wrap: wrap;
+        }
+
+        .feature-box {
+            background: white;
+            padding: 30px;
+            border-radius: 12px;
+            width: 280px;
+            box-shadow: 0 5px 15px rgba(0,0,0,0.1);
+            transition: 0.3s;
+        }
+
+        .feature-box:hover {
+            transform: translateY(-8px);
+        }
+
+        .feature-box h3 {
+            margin-bottom: 15px;
+            color: #1e293b;
+        }
+
+        /* FOOTER */
+        .footer {
+            background: #0f172a;
+            color: white;
+            text-align: center;
+            padding: 20px;
+            margin-top: 50px;
+        }
+
+        .footer p {
+            font-size: 14px;
+        }
+    </style>
+</head>
+<body>
+
+    <!-- NAVBAR -->
+    <div class="navbar">
+        <h2>MessMate 🍽️</h2>
+        <div class="nav-links">
+            <a href="/">Home</a>
+            <a href="/login/">Login</a>
+            <a href="/register/">Register</a>
+        </div>
+    </div>
+
+    <!-- HERO SECTION -->
+    <section class="hero">
+        <h1>Welcome to MessMate 🍽️</h1>
+        <p>Smart, simple and efficient mess management system for Students, Vendors and Admins. 
+           Manage food, payments and bookings effortlessly.</p>
+
+        <div class="hero-buttons">
+            <a href="/login/" class="btn-login">Login</a>
+            <a href="/register/" class="btn-register">Get Started</a>
+        </div>
+    </section>
+
+    <!-- FEATURES SECTION -->
+    <section class="features">
+        <h2>Why Choose MessMate?</h2>
+
+        <div class="feature-container">
+
+            <div class="feature-box">
+                <h3>👨‍🎓 For Students</h3>
+                <p>Easy mess subscription, online payments, and menu tracking.</p>
+            </div>
+
+            <div class="feature-box">
+                <h3>🏪 For Vendors</h3>
+                <p>Manage student records, food menus, and billing efficiently.</p>
+            </div>
+
+            <div class="feature-box">
+                <h3>🛠️ For Admin</h3>
+                <p>Complete control over users, reports and system management.</p>
+            </div>
+
+        </div>
+    </section>
+
+    <!-- FOOTER -->
+    <div class="footer">
+        <p>© 2026 MessMate | Designed with ❤️ by Payal</p>
+    </div>
+
+</body>
+</html>

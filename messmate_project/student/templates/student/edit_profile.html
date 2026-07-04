@@ -1,0 +1,52 @@
+{% extends "base.html" %}
+
+{% block title %}Edit Student Profile - SMARTMESS AI{% endblock %}
+
+{% block content %}
+<div class="container py-5">
+    <div class="row justify-content-center">
+        <div class="col-md-7">
+            <div class="card glass-card p-5 border-0">
+                <div class="text-center mb-4">
+                    <i class="bi bi-person-gear gradient-text display-4 mb-2"></i>
+                    <h1 class="h3 font-family-title">Edit Profile</h1>
+                    <p class="text-secondary small">Keep your contact and address up to date for smooth deliveries</p>
+                </div>
+                
+                <form method="POST" enctype="multipart/form-data">
+                    {% csrf_token %}
+                    <div class="row g-3">
+                        <div class="col-md-6">
+                            <label class="form-label small fw-bold">First Name</label>
+                            <input type="text" name="first_name" value="{{ request.user.first_name }}" class="form-control rounded-3">
+                        </div>
+                        <div class="col-md-6">
+                            <label class="form-label small fw-bold">Last Name</label>
+                            <input type="text" name="last_name" value="{{ request.user.last_name }}" class="form-control rounded-3">
+                        </div>
+                        <div class="col-md-12">
+                            <label class="form-label small fw-bold">Phone Number</label>
+                            <input type="text" name="phone" value="{{ request.user.phone }}" class="form-control rounded-3" placeholder="e.g. 9876543210">
+                        </div>
+                        <div class="col-md-12">
+                            <label class="form-label small fw-bold">Hostel Address / Room No.</label>
+                            <textarea name="address" rows="3" class="form-control rounded-3" placeholder="e.g. Room 402, Hostel Block B, Main Campus">{{ request.user.address }}</textarea>
+                        </div>
+                        <div class="col-md-12">
+                            <label class="form-label small fw-bold">Profile Image</label>
+                            <input type="file" name="photo" class="form-control rounded-3">
+                            {% if profile.photo %}
+                                <div class="mt-2 text-secondary small">Current: <a href="{{ profile.photo.url }}" target="_blank">{{ profile.photo.name }}</a></div>
+                            {% endif %}
+                        </div>
+                        <div class="col-12 mt-4">
+                            <button type="submit" class="btn btn-gradient w-100 rounded-pill py-2">Save Profile</button>
+                            <a href="{% url 'student_dashboard' %}" class="btn btn-outline-secondary w-100 rounded-pill btn-sm mt-2">Cancel</a>
+                        </div>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

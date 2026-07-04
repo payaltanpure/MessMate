@@ -1,0 +1,191 @@
+{% extends "base.html" %}
+
+{% block title %}{{ mess.mess_name }} - SMARTMESS AI{% endblock %}
+
+{% block content %}
+<div class="container py-4">
+    <!-- Mess Profile Banner -->
+    <div class="card glass-card p-4 border-0 mb-5">
+        <div class="row align-items-center">
+            <div class="col-md-3 text-center mb-3 mb-md-0">
+                {% if mess.image %}
+                    <img src="{{ mess.image.url }}" class="rounded-4 img-fluid shadow" style="max-height: 180px; object-fit: cover;" alt="{{ mess.mess_name }}">
+                {% else %}
+                    <div class="bg-secondary-subtle rounded-4 d-flex align-items-center justify-content-center text-secondary shadow" style="height: 180px; width: 100%;">
+                        <i class="bi bi-image fs-1 opacity-50"></i>
+                    </div>
+                {% endif %}
+            </div>
+            <div class="col-md-9 px-md-4">
+                <div class="d-flex flex-wrap justify-content-between align-items-center gap-2 mb-2">
+                    <h1 class="h2 mb-0">{{ mess.mess_name }}</h1>
+                    <div class="d-flex gap-2">
+                        <span class="badge {% if mess.diet_type == 'veg' %}bg-success{% elif mess.diet_type == 'non-veg' %}bg-danger{% else %}bg-warning text-dark{% endif %} px-3 py-2 rounded-pill">
+                            {{ mess.get_diet_type_display }}
+                        </span>
+                        <span class="badge bg-warning text-dark px-3 py-2 rounded-pill">
+                            <i class="bi bi-star-fill me-1"></i> {{ mess.average_rating }}
+                        </span>
+                    </div>
+                </div>
+                <p class="text-secondary mb-3">{{ mess.description }}</p>
+                <div class="row g-3 small text-secondary">
+                    <div class="col-md-4"><i class="bi bi-geo-alt-fill text-danger me-1"></i> Distance: {{ mess.distance }} km away</div>
+                    <div class="col-md-4"><i class="bi bi-telephone-fill text-primary me-1"></i> Contact: {{ mess.contact_number }}</div>
+                    <div class="col-md-4"><i class="bi bi-geo-fill text-success me-1"></i> Area: {{ mess.location_name }}</div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Active Subscription Alert -->
+    {% if current_sub %}
+        <div class="alert alert-success border-success-subtle rounded-4 shadow-sm mb-5 d-flex justify-content-between align-items-center">
+            <div>
+                <h4 class="alert-heading h6 mb-1 fw-bold"><i class="bi bi-check-circle-fill me-2"></i>You are currently subscribed to this mess!</h4>
+                <p class="mb-0 small text-secondary">Plan: {{ current_sub.get_plan_type_display }} • Remaining Days: {{ current_sub.remaining_days }} days left.</p>
+            </div>
+            <a href="{% url 'student_dashboard' %}" class="btn btn-success btn-sm rounded-pill px-3">Manage Subscription</a>
+        </div>
+    {% endif %}
+
+    <div class="row g-4">
+        <!-- Plans & Menu Ordering -->
+        <div class="col-lg-8">
+            <!-- Tiffin Ordering Menu -->
+            <div class="card glass-card p-4 border-0 mb-4">
+                <h2 class="h5 mb-4"><i class="bi bi-basket3 gradient-text me-2"></i>Daily Tiffin Menu</h2>
+                {% if meals %}
+                    <div class="row g-3">
+                        {% for meal in meals %}
+                            <div class="col-md-6">
+                                <div class="p-3 bg-body-tertiary rounded-4 border h-100 d-flex flex-column justify-content-between">
+                                    <div>
+                                        <div class="d-flex justify-content-between align-items-start mb-2">
+                                            <h3 class="h6 mb-0">{{ meal.name }}</h3>
+                                            <span class="badge bg-secondary-subtle text-secondary text-capitalize" style="font-size:0.75rem;">{{ meal.meal_type }}</span>
+                                        </div>
+                                        <p class="text-secondary small mb-3">{{ meal.menu_items }}</p>
+                                    </div>
+                                    <div class="d-flex justify-content-between align-items-center">
+                                        <span class="fw-bold text-primary">Rs. {{ meal.price }}</span>
+                                        <a href="{% url 'add_to_cart' meal.id %}" class="btn btn-gradient btn-sm rounded-pill px-3"><i class="bi bi-cart-plus me-1"></i>Add Tiffin</a>
+                                    </div>
+                                </div>
+                            </div>
+                        {% endfor %}
+                    </div>
+                {% else %}
+                    <p class="text-secondary text-center py-4">No daily tiffin items added by the vendor.</p>
+                {% endif %}
+            </div>
+
+            <!-- Subscriptions tiers -->
+            {% if not current_sub %}
+            <div class="card glass-card p-4 border-0">
+                <h2 class="h5 mb-4"><i class="bi bi-calendar-range gradient-text me-2"></i>Monthly Subscription Plans</h2>
+                <div class="row g-3 text-center">
+                    <!-- Lunch Tier -->
+                    <div class="col-md-4">
+                        <div class="p-3 bg-body-tertiary border rounded-4">
+                            <h3 class="h6 mb-2">Lunch Only</h3>
+                            <h4 class="h5 fw-bold text-success mb-3">Rs. {{ mess.monthly_price_lunch }} <span class="small text-secondary fw-normal">/mo</span></h4>
+                            <form method="POST" action="{% url 'subscribe_plan' mess.id %}">
+                                {% csrf_token %}
+                                <input type="hidden" name="plan_type" value="lunch">
+                                <button type="submit" class="btn btn-outline-success btn-sm w-100 rounded-pill">Subscribe</button>
+                            </form>
+                        </div>
+                    </div>
+                    <!-- Dinner Tier -->
+                    <div class="col-md-4">
+                        <div class="p-3 bg-body-tertiary border rounded-4">
+                            <h3 class="h6 mb-2">Dinner Only</h3>
+                            <h4 class="h5 fw-bold text-success mb-3">Rs. {{ mess.monthly_price_dinner }} <span class="small text-secondary fw-normal">/mo</span></h4>
+                            <form method="POST" action="{% url 'subscribe_plan' mess.id %}">
+                                {% csrf_token %}
+                                <input type="hidden" name="plan_type" value="dinner">
+                                <button type="submit" class="btn btn-outline-success btn-sm w-100 rounded-pill">Subscribe</button>
+                            </form>
+                        </div>
+                    </div>
+                    <!-- Combined Tier -->
+                    <div class="col-md-4">
+                        <div class="p-3 bg-body-tertiary border rounded-4 border-primary">
+                            <h3 class="h6 mb-2 text-primary">Lunch + Dinner</h3>
+                            <h4 class="h5 fw-bold text-primary mb-3">Rs. {{ mess.monthly_price_both }} <span class="small text-secondary fw-normal">/mo</span></h4>
+                            <form method="POST" action="{% url 'subscribe_plan' mess.id %}">
+                                {% csrf_token %}
+                                <input type="hidden" name="plan_type" value="both">
+                                <button type="submit" class="btn btn-gradient btn-sm w-100 rounded-pill">Subscribe</button>
+                            </form>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            {% endif %}
+        </div>
+
+        <!-- Reviews & Ratings Section -->
+        <div class="col-lg-4">
+            <!-- Review input form -->
+            <div class="card glass-card p-4 border-0 mb-4">
+                <h2 class="h5 mb-3"><i class="bi bi-pencil-square text-warning me-2"></i>Write a Review</h2>
+                <form method="POST" action="{% url 'add_review' mess.id %}" enctype="multipart/form-data">
+                    {% csrf_token %}
+                    <div class="mb-3">
+                        <label class="form-label small fw-bold">Star Rating</label>
+                        <select name="rating" class="form-select rounded-3">
+                            <option value="5">5 Stars - Delicious!</option>
+                            <option value="4">4 Stars - Very Good</option>
+                            <option value="3">3 Stars - Decent</option>
+                            <option value="2">2 Stars - Poor Quality</option>
+                            <option value="1">1 Star - Worst Food</option>
+                        </select>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label small fw-bold">Your Review</label>
+                        <textarea name="comment" rows="3" class="form-control rounded-3" placeholder="Tell us how you liked the taste, packaging, hygiene..." required></textarea>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label small fw-bold">Food Photo (Optional)</label>
+                        <input type="file" name="photo" class="form-control rounded-3">
+                    </div>
+                    <button type="submit" class="btn btn-gradient w-100 rounded-pill btn-sm py-2">Submit Feedback</button>
+                </form>
+            </div>
+
+            <!-- Feed reviews -->
+            <div class="card glass-card p-4 border-0">
+                <h2 class="h5 mb-4"><i class="bi bi-chat-heart text-danger me-2"></i>Reviews ({{ reviews.count }})</h2>
+                {% if reviews %}
+                    <div style="max-height: 400px; overflow-y: auto; padding-right:5px;">
+                        {% for r in reviews %}
+                            <div class="mb-3 border-bottom pb-3">
+                                <div class="d-flex justify-content-between align-items-center mb-1">
+                                    <span class="fw-bold small">{{ r.student.username }}</span>
+                                    <span class="text-secondary small" style="font-size:0.75rem;">{{ r.created_at|date:"d M Y" }}</span>
+                                </div>
+                                <div class="mb-1 text-warning small">
+                                    {% for i in "12345"|make_list %}
+                                        <i class="bi {% if forloop.counter <= r.rating %}bi-star-fill{% else %}bi-star{% endif %}"></i>
+                                    {% endfor %}
+                                    <span class="badge {% if r.sentiment == 'positive' %}bg-success-subtle text-success{% elif r.sentiment == 'negative' %}bg-danger-subtle text-danger{% else %}bg-secondary-subtle text-secondary{% endif %} ms-2" style="font-size:0.65rem;">
+                                        {{ r.sentiment|upper }}
+                                    </span>
+                                </div>
+                                <p class="text-secondary small mb-2">{{ r.comment }}</p>
+                                {% if r.photo %}
+                                    <img src="{{ r.photo.url }}" class="rounded-3 img-fluid shadow-sm" style="max-height: 100px; object-fit: cover;" alt="Food Pic">
+                                {% endif %}
+                            </div>
+                        {% endfor %}
+                    </div>
+                {% else %}
+                    <p class="text-secondary small text-center mb-0">No reviews yet. Be the first to share your thoughts!</p>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

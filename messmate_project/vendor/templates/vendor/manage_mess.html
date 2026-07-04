@@ -1,0 +1,53 @@
+{% extends "base.html" %}
+
+{% block title %}Manage Messes - SMARTMESS AI{% endblock %}
+
+{% block content %}
+<div class="container py-4">
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <h1 class="h3"><i class="bi bi-shop me-2 text-primary"></i>Your Messes</h1>
+        <a href="{% url 'add_mess' %}" class="btn btn-gradient rounded-pill"><i class="bi bi-plus-circle me-1"></i> Add New Mess</a>
+    </div>
+
+    {% if messes %}
+    <div class="row g-4">
+        {% for mess in messes %}
+        <div class="col-md-6 col-lg-4">
+            <div class="card glass-card h-100 border-0 shadow-sm">
+                <div class="position-relative">
+                    {% if mess.image %}
+                        <img src="{{ mess.image.url }}" class="card-img-top" alt="{{ mess.mess_name }}" style="height: 180px; object-fit: cover; border-top-left-radius:16px; border-top-right-radius:16px;">
+                    {% else %}
+                        <div class="bg-secondary-subtle d-flex align-items-center justify-content-center text-secondary" style="height: 180px; border-top-left-radius:16px; border-top-right-radius:16px;">
+                            <i class="bi bi-image fs-1 opacity-50"></i>
+                        </div>
+                    {% endif %}
+                    <span class="position-absolute top-0 end-0 m-3 badge {% if mess.diet_type == 'veg' %}bg-success{% elif mess.diet_type == 'non-veg' %}bg-danger{% else %}bg-warning text-dark{% endif %}">
+                        {{ mess.get_diet_type_display }}
+                    </span>
+                </div>
+                <div class="card-body">
+                    <h5 class="card-title fw-bold">{{ mess.mess_name }}</h5>
+                    <p class="card-text text-secondary small mb-2"><i class="bi bi-geo-alt me-1"></i>{{ mess.location_name }}</p>
+                    <p class="card-text text-secondary small"><i class="bi bi-telephone me-1"></i>{{ mess.contact_number }}</p>
+                    
+                    <div class="d-flex flex-wrap gap-2 mt-3">
+                        <a href="{% url 'manage_meals' mess.id %}" class="btn btn-sm btn-outline-primary rounded-pill flex-grow-1"><i class="bi bi-list-check me-1"></i> Meals</a>
+                        <a href="{% url 'edit_mess' mess.id %}" class="btn btn-sm btn-outline-secondary rounded-pill"><i class="bi bi-pencil"></i></a>
+                        <a href="{% url 'delete_mess' mess.id %}" class="btn btn-sm btn-outline-danger rounded-pill" onclick="return confirm('Are you sure you want to delete this mess?');"><i class="bi bi-trash"></i></a>
+                    </div>
+                </div>
+            </div>
+        </div>
+        {% endfor %}
+    </div>
+    {% else %}
+    <div class="text-center py-5 glass-card rounded-4">
+        <i class="bi bi-shop fs-1 text-secondary opacity-50 mb-3"></i>
+        <h3 class="h5 text-secondary">No messes created yet</h3>
+        <p class="text-secondary small">Start by creating your first mess to serve students.</p>
+        <a href="{% url 'add_mess' %}" class="btn btn-gradient rounded-pill px-4">Create Mess</a>
+    </div>
+    {% endif %}
+</div>
+{% endblock %}

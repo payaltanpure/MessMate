@@ -1,0 +1,102 @@
+{% extends "base.html" %}
+
+{% block title %}Business Profile - SMARTMESS AI{% endblock %}
+
+{% block content %}
+<div class="container py-4">
+    <div class="row justify-content-center">
+        <div class="col-lg-8">
+            <div class="card glass-card border-0 p-4">
+                <div class="d-flex align-items-center mb-4">
+                    <div class="bg-secondary-subtle text-secondary rounded-circle border d-flex align-items-center justify-content-center me-3" style="width: 60px; height: 60px;">
+                        <i class="bi bi-person-badge fs-3"></i>
+                    </div>
+                    <div>
+                        <h1 class="h3 mb-0">Business Profile Settings</h1>
+                        <p class="text-secondary small mb-0">Update your vendor details and compliance documents.</p>
+                    </div>
+                </div>
+
+                <!-- Verification Status Alert -->
+                {% if profile.verification_status == 'pending' %}
+                    <div class="alert alert-warning border-warning-subtle d-flex align-items-center" role="alert">
+                        <i class="bi bi-exclamation-triangle-fill flex-shrink-0 me-2"></i>
+                        <div><strong>Pending Verification:</strong> Your business profile is under review by the admin. Some features may be restricted.</div>
+                    </div>
+                {% elif profile.verification_status == 'rejected' %}
+                    <div class="alert alert-danger border-danger-subtle d-flex align-items-center" role="alert">
+                        <i class="bi bi-x-circle-fill flex-shrink-0 me-2"></i>
+                        <div><strong>Verification Rejected:</strong> Please update your documents and contact support.</div>
+                    </div>
+                {% elif profile.verification_status == 'approved' %}
+                    <div class="alert alert-success border-success-subtle d-flex align-items-center" role="alert">
+                        <i class="bi bi-check-circle-fill flex-shrink-0 me-2"></i>
+                        <div><strong>Verified Vendor:</strong> Your business profile is approved and active.</div>
+                    </div>
+                {% endif %}
+
+                <form method="POST" enctype="multipart/form-data">
+                    {% csrf_token %}
+                    
+                    <div class="row g-3">
+                        <!-- Owner Info -->
+                        <div class="col-12 mt-3">
+                            <h4 class="h6 border-bottom pb-2">Personal Information</h4>
+                        </div>
+                        <div class="col-md-6">
+                            <label class="form-label small fw-bold">First Name</label>
+                            <input type="text" name="first_name" value="{{ request.user.first_name }}" class="form-control rounded-3 bg-body-tertiary" placeholder="First Name">
+                        </div>
+                        <div class="col-md-6">
+                            <label class="form-label small fw-bold">Last Name</label>
+                            <input type="text" name="last_name" value="{{ request.user.last_name }}" class="form-control rounded-3 bg-body-tertiary" placeholder="Last Name">
+                        </div>
+
+                        <!-- Business Info -->
+                        <div class="col-12 mt-4">
+                            <h4 class="h6 border-bottom pb-2">Business Details</h4>
+                        </div>
+                        <div class="col-md-6">
+                            <label class="form-label small fw-bold">Business Name</label>
+                            <input type="text" name="business_name" value="{{ profile.business_name }}" class="form-control rounded-3 bg-body-tertiary" required>
+                        </div>
+                        <div class="col-md-6">
+                            <label class="form-label small fw-bold">Contact Number</label>
+                            <input type="text" name="contact_number" value="{{ profile.contact_number }}" class="form-control rounded-3 bg-body-tertiary" required>
+                        </div>
+                        <div class="col-md-12">
+                            <label class="form-label small fw-bold">Business Address</label>
+                            <textarea name="business_address" class="form-control rounded-3 bg-body-tertiary" rows="2" required>{{ profile.business_address }}</textarea>
+                        </div>
+
+                        <!-- Compliance Info -->
+                        <div class="col-12 mt-4">
+                            <h4 class="h6 border-bottom pb-2">Compliance & Licensing</h4>
+                        </div>
+                        <div class="col-md-6">
+                            <label class="form-label small fw-bold">GST Number (Optional)</label>
+                            <input type="text" name="gst_number" value="{{ profile.gst_number|default:'' }}" class="form-control rounded-3 bg-body-tertiary">
+                        </div>
+                        <div class="col-md-6">
+                            <label class="form-label small fw-bold">FSSAI License No.</label>
+                            <input type="text" name="fssai_license" value="{{ profile.fssai_license|default:'' }}" class="form-control rounded-3 bg-body-tertiary">
+                        </div>
+                        <div class="col-md-12">
+                            <label class="form-label small fw-bold">Upload Documents (PDF/Images)</label>
+                            <input type="file" name="documents" class="form-control rounded-3 bg-body-tertiary">
+                            {% if profile.documents %}
+                                <div class="form-text text-success mt-1"><i class="bi bi-file-earmark-check"></i> Document currently uploaded. (Upload new to replace)</div>
+                            {% endif %}
+                        </div>
+
+                        <!-- Submit -->
+                        <div class="col-12 mt-4 text-end">
+                            <button type="submit" class="btn btn-gradient rounded-pill px-4"><i class="bi bi-save me-1"></i> Update Profile</button>
+                        </div>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

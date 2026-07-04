@@ -1,0 +1,30 @@
+{% extends "base.html" %}
+{% load crispy_forms_tags %}
+
+{% block title %}SMARTMESS AI - Portal Registration{% endblock %}
+
+{% block content %}
+<div class="container py-5">
+    <div class="row justify-content-center">
+        <div class="col-md-6">
+            <div class="card glass-card p-5 border-0">
+                <div class="text-center mb-4">
+                    <i class="bi bi-person-plus-fill gradient-text display-4 mb-2"></i>
+                    <h1 class="h3 font-family-title">Create Account</h1>
+                    <p class="text-secondary small">Join students, delivery staff, and mess vendors</p>
+                </div>
+                
+                <form method="POST" action="{% url 'register' %}">
+                    {% csrf_token %}
+                    {{ form|crispy }}
+                    <button type="submit" class="btn btn-gradient w-100 rounded-pill py-2 mt-3">Register Account</button>
+                </form>
+                
+                <div class="text-center mt-4">
+                    <p class="text-secondary small mb-0">Already registered? <a href="{% url 'login' %}" class="text-decoration-none fw-bold">Log In Here</a></p>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

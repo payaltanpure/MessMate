@@ -1,0 +1,81 @@
+{% extends "base.html" %}
+
+{% block title %}Earnings & Revenue - SMARTMESS AI{% endblock %}
+
+{% block content %}
+<div class="container py-4">
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <h1 class="h3"><i class="bi bi-cash-stack me-2 text-success"></i>Revenue Dashboard</h1>
+    </div>
+
+    <div class="row g-4 mb-4">
+        <!-- Summary Cards -->
+        <div class="col-md-4">
+            <div class="card glass-card border-success border-bottom border-3 p-4 text-center">
+                <i class="bi bi-wallet fs-1 text-success mb-2 d-block"></i>
+                <h3 class="fw-bold text-success mb-0">Earnings Info</h3>
+                <p class="text-secondary small mt-2">Sum of all successful payments</p>
+            </div>
+        </div>
+        <div class="col-md-8">
+            <div class="card glass-card border-0 p-4 h-100 d-flex justify-content-center">
+                <div class="alert alert-info border-info-subtle d-flex align-items-center mb-0">
+                    <i class="bi bi-info-circle-fill fs-4 me-3"></i>
+                    <div>
+                        <strong>Settlements:</strong> Earnings are transferred to your registered bank account weekly. Subscriptions are credited upfront while tiffins are credited on delivery.
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Payments List -->
+    <div class="card glass-card border-0 p-4">
+        <h4 class="h5 mb-4">Recent Transactions</h4>
+        {% if payments %}
+        <div class="table-responsive">
+            <table class="table align-middle">
+                <thead>
+                    <tr>
+                        <th>Date</th>
+                        <th>Transaction ID</th>
+                        <th>Type</th>
+                        <th>Customer</th>
+                        <th>Amount</th>
+                        <th>Status</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for p in payments %}
+                    <tr>
+                        <td>{{ p.created_at|date:"d M Y, h:i A" }}</td>
+                        <td><span class="text-secondary small font-monospace">{{ p.razorpay_payment_id|default:p.id }}</span></td>
+                        <td>
+                            {% if p.subscription %}
+                                <span class="badge bg-primary-subtle text-primary"><i class="bi bi-calendar-check me-1"></i> Subscription</span>
+                            {% elif p.order %}
+                                <span class="badge bg-warning-subtle text-warning"><i class="bi bi-box me-1"></i> Tiffin Order</span>
+                            {% else %}
+                                <span class="badge bg-secondary-subtle text-secondary">Other</span>
+                            {% endif %}
+                        </td>
+                        <td>{{ p.user.first_name|default:p.user.username }}</td>
+                        <td class="fw-bold text-success">+ Rs. {{ p.amount }}</td>
+                        <td>
+                            <span class="badge bg-success"><i class="bi bi-check-circle me-1"></i> Success</span>
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+        {% else %}
+        <div class="text-center py-5">
+            <i class="bi bi-receipt fs-1 text-secondary opacity-50 mb-3"></i>
+            <h3 class="h5 text-secondary">No Earnings Yet</h3>
+            <p class="text-secondary small">Your successful transactions will appear here.</p>
+        </div>
+        {% endif %}
+    </div>
+</div>
+{% endblock %}

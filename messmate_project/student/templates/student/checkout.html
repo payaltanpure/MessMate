@@ -1,0 +1,57 @@
+{% extends "base.html" %}
+
+{% block title %}Checkout - SMARTMESS AI{% endblock %}
+
+{% block content %}
+<div class="container py-5">
+    <div class="row justify-content-center">
+        <div class="col-md-6">
+            <div class="card glass-card p-5 border-0">
+                <h1 class="h3 font-family-title mb-4 text-center"><i class="bi bi-credit-card-2-front gradient-text me-2"></i>Checkout & Payment</h1>
+                
+                <div class="p-3 bg-body-tertiary rounded-4 border mb-4">
+                    <h2 class="h6 text-secondary mb-3">Order Summary</h2>
+                    <ul class="list-unstyled mb-0 small">
+                        {% for item in cart.items.all %}
+                            <li class="mb-2 d-flex justify-content-between">
+                                <span>{{ item.quantity }}x {{ item.meal.name }}</span>
+                                <span class="text-secondary">Rs. {{ item.total_price }}</span>
+                            </li>
+                        {% endfor %}
+                        <li class="border-top pt-2 mt-2 d-flex justify-content-between fw-bold text-primary">
+                            <span>Amount Payable:</span>
+                            <span>Rs. {{ cart.total_price }}</span>
+                        </li>
+                    </ul>
+                </div>
+                
+                <form method="POST">
+                    {% csrf_token %}
+                    <label class="form-label small fw-bold mb-3 d-block">Select Payment Option</label>
+                    
+                    <!-- Wallet -->
+                    <div class="form-check p-3 border rounded-4 mb-3 d-flex align-items-center gap-3">
+                        <input class="form-check-input ms-0 mt-0" type="radio" name="payment_method" id="payWallet" value="wallet" checked>
+                        <label class="form-check-label w-100 cursor-pointer" for="payWallet">
+                            <span class="d-block fw-bold text-success"><i class="bi bi-wallet2 me-1"></i> Pay with Wallet Balance</span>
+                            <span class="text-secondary small">Available Combined Bal: Rs. {{ request.user.student_profile.wallet_balance|default:"0.00" }}</span>
+                        </label>
+                    </div>
+                    
+                    <!-- Online Razorpay Mock -->
+                    <div class="form-check p-3 border rounded-4 mb-4 d-flex align-items-center gap-3">
+                        <input class="form-check-input ms-0 mt-0" type="radio" name="payment_method" id="payOnline" value="online">
+                        <label class="form-check-label w-100 cursor-pointer" for="payOnline">
+                            <span class="d-block fw-bold text-primary"><i class="bi bi-qr-code-scan me-1"></i> Pay via UPI / Cards / Net Banking</span>
+                            <span class="text-secondary small">Secure transaction via Razorpay gateway</span>
+                        </label>
+                    </div>
+                    
+                    <button type="submit" class="btn btn-gradient w-100 rounded-pill py-2">Place Order</button>
+                    <a href="{% url 'view_cart' %}" class="btn btn-outline-secondary w-100 rounded-pill btn-sm mt-2">Back to Cart</a>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
