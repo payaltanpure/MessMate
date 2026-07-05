@@ -1,0 +1,21 @@
+{% extends "base.html" %}
+
+{% block title %}Payment Success - SMARTMESS AI{% endblock %}
+
+{% block content %}
+<div class="container py-5">
+    <div class="row justify-content-center">
+        <div class="col-md-8">
+            <div class="card p-5 border-0 shadow-sm text-center">
+                <h1 class="display-6 text-success">Payment Successful</h1>
+                <p class="lead">Your payment of Rs. {{ payment.amount }} has been processed successfully.</p>
+                <p>Payment ID: {{ payment.payment_id }}</p>
+                {% if payment.order %}
+                    <p>Order #: {{ payment.order.id }}</p>
+                {% endif %}
+                <a href="{% url 'student_dashboard' %}" class="btn btn-gradient mt-3">Go to Dashboard</a>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

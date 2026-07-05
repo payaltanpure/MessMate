@@ -4,9 +4,25 @@ import datetime
 from django.conf import settings
 from vendor.models import Mess, Meal
 from student.models import Order, OrderItem, Review, Subscription
-import numpy as np
-import pandas as pd
-from sklearn.linear_model import LinearRegression
+HAS_NUMPY = HAS_PANDAS = HAS_SKLEARN = False
+np = None
+pd = None
+LinearRegression = None
+try:
+    import numpy as np
+    HAS_NUMPY = True
+except Exception:
+    np = None
+try:
+    import pandas as pd
+    HAS_PANDAS = True
+except Exception:
+    pd = None
+try:
+    from sklearn.linear_model import LinearRegression
+    HAS_SKLEARN = True
+except Exception:
+    LinearRegression = None
 
 # Gemini API Integration
 try:
@@ -44,53 +60,86 @@ def recommend_messes(student_pref='both', budget=None, max_distance=None, min_ra
     messes_list = list(messes)
     if not messes_list:
         return {'best_mess': None, 'best_value': None, 'most_popular': None, 'all_recommendations': []}
-        
-    # Build dataframe for scikit-learn or scoring
-    data = []
-    for m in messes_list:
-        data.append({
-            'id': m.id,
-            'name': m.mess_name,
-            'price': float(m.monthly_price_both if m.monthly_price_both > 0 else (m.daily_tiffin_price * 30)),
-            'distance': float(m.distance),
-            'rating': float(m.average_rating),
-            'obj': m
-        })
-        
-    df = pd.DataFrame(data)
-    
-    # Avoid division by zero by checking ranges
-    price_min, price_max = df['price'].min(), df['price'].max()
-    dist_min, dist_max = df['distance'].min(), df['distance'].max()
-    
-    df['norm_price'] = 1.0 - (df['price'] - price_min) / (price_max - price_min + 0.1)
-    df['norm_dist'] = 1.0 - (df['distance'] - dist_min) / (dist_max - dist_min + 0.1)
-    df['norm_rating'] = df['rating'] / 5.0
-    
-    # Calculate Score (30% rating, 30% price, 20% distance, 20% general matching)
-    df['score'] = (df['norm_rating'] * 0.4) + (df['norm_price'] * 0.3) + (df['norm_dist'] * 0.3)
-    
-    # Sorting
-    df_sorted = df.sort_values(by='score', ascending=False)
-    
-    best_mess = df_sorted.iloc[0]['obj'] if not df_sorted.empty else None
-    
-    # Best Value: Cheap but decent rating
-    df_value = df[df['rating'] >= 3.5].sort_values(by='price')
-    best_value = df_value.iloc[0]['obj'] if not df_value.empty else (best_mess)
-    
-    # Most Popular: Highest rating
-    df_popular = df.sort_values(by=['rating', 'distance'], ascending=[False, True])
-    most_popular = df_popular.iloc[0]['obj'] if not df_popular.empty else None
-    
-    all_recs = [row['obj'] for _, row in df_sorted.iterrows()]
-    
-    return {
-        'best_mess': best_mess,
-        'best_value': best_value,
-        'most_popular': most_popular,
-        'all_recommendations': all_recs[:5]
-    }
+    # If pandas/numpy not available, fall back to lightweight scoring to avoid ImportError at import-time
+    try:
+        if HAS_PANDAS and HAS_NUMPY:
+            data = []
+            for m in messes_list:
+                price_val = float(m.monthly_price_both if m.monthly_price_both and m.monthly_price_both > 0 else (m.daily_tiffin_price * 30))
+                data.append({
+                    'id': m.id,
+                    'name': m.mess_name,
+                    'price': price_val,
+                    'distance': float(m.distance),
+                    'rating': float(m.average_rating),
+                    'obj': m
+                })
+            df = pd.DataFrame(data)
+            price_min, price_max = df['price'].min(), df['price'].max()
+            dist_min, dist_max = df['distance'].min(), df['distance'].max()
+            df['norm_price'] = 1.0 - (df['price'] - price_min) / (price_max - price_min + 0.1)
+            df['norm_dist'] = 1.0 - (df['distance'] - dist_min) / (dist_max - dist_min + 0.1)
+            df['norm_rating'] = df['rating'] / 5.0
+            df['score'] = (df['norm_rating'] * 0.4) + (df['norm_price'] * 0.3) + (df['norm_dist'] * 0.3)
+            df_sorted = df.sort_values(by='score', ascending=False)
+            best_mess = df_sorted.iloc[0]['obj'] if not df_sorted.empty else None
+            df_value = df[df['rating'] >= 3.5].sort_values(by='price')
+            best_value = df_value.iloc[0]['obj'] if not df_value.empty else best_mess
+            df_popular = df.sort_values(by=['rating', 'distance'], ascending=[False, True])
+            most_popular = df_popular.iloc[0]['obj'] if not df_popular.empty else None
+            all_recs = [row['obj'] for _, row in df_sorted.iterrows()]
+            return {
+                'best_mess': best_mess,
+                'best_value': best_value,
+                'most_popular': most_popular,
+                'all_recommendations': all_recs[:5]
+            }
+        else:
+            # Lightweight fallback scoring (no external ML libs)
+            scored = []
+            prices = []
+            dists = []
+            ratings = []
+            for m in messes_list:
+                price_val = float(m.monthly_price_both if m.monthly_price_both and m.monthly_price_both > 0 else (m.daily_tiffin_price * 30))
+                prices.append(price_val)
+                dists.append(float(m.distance))
+                ratings.append(float(m.average_rating))
+            price_min, price_max = min(prices), max(prices)
+            dist_min, dist_max = min(dists), max(dists)
+            for idx, m in enumerate(messes_list):
+                price_val = prices[idx]
+                dist_val = dists[idx]
+                rating_val = ratings[idx]
+                norm_price = 1.0 - ((price_val - price_min) / (price_max - price_min + 0.1))
+                norm_dist = 1.0 - ((dist_val - dist_min) / (dist_max - dist_min + 0.1))
+                norm_rating = rating_val / 5.0
+                score = (norm_rating * 0.4) + (norm_price * 0.3) + (norm_dist * 0.3)
+                scored.append((score, m))
+            scored.sort(key=lambda x: x[0], reverse=True)
+            all_recs = [m for _, m in scored]
+            best_mess = all_recs[0] if all_recs else None
+            # best value: cheapest among those with decent ratings
+            decent = [m for m in messes_list if float(m.average_rating) >= 3.5]
+            if decent:
+                best_value = min(decent, key=lambda mm: float(mm.monthly_price_both if mm.monthly_price_both and mm.monthly_price_both > 0 else (mm.daily_tiffin_price * 30)))
+            else:
+                best_value = best_mess
+            most_popular = max(messes_list, key=lambda mm: (float(mm.average_rating), -float(mm.distance))) if messes_list else None
+            return {
+                'best_mess': best_mess,
+                'best_value': best_value,
+                'most_popular': most_popular,
+                'all_recommendations': all_recs[:5]
+            }
+    except Exception:
+        # Safe fallback: return raw mess list if something unexpected fails
+        return {
+            'best_mess': messes_list[0] if messes_list else None,
+            'best_value': messes_list[0] if messes_list else None,
+            'most_popular': messes_list[0] if messes_list else None,
+            'all_recommendations': messes_list[:5]
+        }
 
 
 # 2. AI Chatbot

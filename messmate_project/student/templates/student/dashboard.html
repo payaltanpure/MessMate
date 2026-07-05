@@ -67,11 +67,20 @@
                             <!-- Pause / Resume Controls -->
                             <div class="d-flex gap-2 mt-4">
                                 {% if subscription.status == 'active' %}
-                                    <a href="{% url 'pause_subscription' subscription.id %}" class="btn btn-warning w-50 rounded-pill btn-sm text-dark"><i class="bi bi-pause-fill me-1"></i>Pause Plan</a>
+                                    <form method="POST" action="{% url 'pause_subscription' subscription.id %}" class="w-50">
+                                        {% csrf_token %}
+                                        <button type="submit" class="btn btn-warning w-100 rounded-pill btn-sm text-dark"><i class="bi bi-pause-fill me-1"></i>Pause Plan</button>
+                                    </form>
                                 {% elif subscription.status == 'paused' %}
-                                    <a href="{% url 'resume_subscription' subscription.id %}" class="btn btn-success w-50 rounded-pill btn-sm"><i class="bi bi-play-fill me-1"></i>Resume Plan</a>
+                                    <form method="POST" action="{% url 'resume_subscription' subscription.id %}" class="w-50">
+                                        {% csrf_token %}
+                                        <button type="submit" class="btn btn-success w-100 rounded-pill btn-sm"><i class="bi bi-play-fill me-1"></i>Resume Plan</button>
+                                    </form>
                                 {% endif %}
-                                <a href="{% url 'cancel_subscription' subscription.id %}" onclick="return confirm('Cancel subscription? 80% remaining refund will credit to wallet.')" class="btn btn-outline-danger w-50 rounded-pill btn-sm"><i class="bi bi-x-circle me-1"></i>Cancel Plan</a>
+                                <form method="POST" action="{% url 'cancel_subscription' subscription.id %}" class="w-50" onsubmit="return confirm('Cancel subscription? 80% remaining refund will credit to wallet.')">
+                                    {% csrf_token %}
+                                    <button type="submit" class="btn btn-outline-danger w-100 rounded-pill btn-sm"><i class="bi bi-x-circle me-1"></i>Cancel Plan</button>
+                                </form>
                             </div>
                         </div>
                     </div>
@@ -144,9 +153,12 @@
                                     <h4 class="h6 mb-1">{{ m.name }}</h4>
                                     <span class="text-secondary small">{{ m.mess.mess_name }} • Rs. {{ m.price }}</span>
                                 </div>
-                                <a href="{% url 'add_to_cart' m.id %}" class="btn btn-gradient rounded-circle p-2 d-flex align-items-center justify-content-center" style="width: 32px; height: 32px;" title="Add to Cart">
-                                    <i class="bi bi-plus-lg text-white"></i>
-                                </a>
+                                <form method="POST" action="{% url 'add_to_cart' m.id %}" class="d-inline">
+                                    {% csrf_token %}
+                                    <button type="submit" class="btn btn-gradient rounded-circle p-2 d-flex align-items-center justify-content-center" style="width: 32px; height: 32px;" title="Add to Cart">
+                                        <i class="bi bi-plus-lg text-white"></i>
+                                    </button>
+                                </form>
                             </div>
                         </div>
                     {% endfor %}

@@ -42,6 +42,7 @@ INSTALLED_APPS = [
     'core',
     'student',
     'vendor',
+    'payments',
     
     # Third party packages
     'rest_framework',

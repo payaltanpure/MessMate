@@ -1,0 +1,18 @@
+{% extends "base.html" %}
+
+{% block title %}Payment Failed - SMARTMESS AI{% endblock %}
+
+{% block content %}
+<div class="container py-5">
+    <div class="row justify-content-center">
+        <div class="col-md-8">
+            <div class="card p-5 border-0 shadow-sm text-center">
+                <h1 class="display-6 text-danger">Payment Failed</h1>
+                <p class="lead">Your payment could not be completed.</p>
+                <p>Payment ID: {{ payment.payment_id }}</p>
+                <a href="{% url 'view_cart' %}" class="btn btn-outline-secondary mt-3">Return to Cart</a>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

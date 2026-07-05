@@ -1,6 +1,7 @@
 from django.db import models
 from django.conf import settings
 from vendor.models import Mess, Meal
+import uuid
 
 class Subscription(models.Model):
     PLAN_CHOICES = (
@@ -98,12 +99,15 @@ class WalletTransaction(models.Model):
         ('credit', 'Add Money'),
         ('debit', 'Payment/Debit'),
         ('cashback', 'Cashback Credit'),
+        ('recharge', 'Recharge'),
+        ('order_payment', 'Order Payment'),
+        ('subscription_payment', 'Subscription Payment'),
         ('withdrawal', 'Withdrawal'),
         ('refund', 'Refund'),
     )
     user = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.CASCADE, related_name='wallet_transactions')
     amount = models.DecimalField(max_digits=10, decimal_places=2)
-    transaction_type = models.CharField(max_length=15, choices=TX_TYPE_CHOICES)
+    transaction_type = models.CharField(max_length=25, choices=TX_TYPE_CHOICES)
     description = models.CharField(max_length=255)
     created_at = models.DateTimeField(auto_now_add=True)
 
@@ -118,15 +122,22 @@ class Payment(models.Model):
         ('failed', 'Failed'),
         ('refunded', 'Refunded'),
     )
+    # New unified payment model fields
+    payment_id = models.UUIDField(default=uuid.uuid4, editable=False, unique=True)
     order = models.ForeignKey(Order, null=True, blank=True, on_delete=models.SET_NULL, related_name='payments')
     subscription = models.ForeignKey(Subscription, null=True, blank=True, on_delete=models.SET_NULL, related_name='payments')
     user = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.CASCADE, related_name='payments')
+    amount = models.DecimalField(max_digits=10, decimal_places=2)
+    payment_method = models.CharField(max_length=30, default='online')
+    payment_gateway = models.CharField(max_length=50, blank=True, null=True)
+    gateway_transaction_id = models.CharField(max_length=200, blank=True, null=True, unique=True)
+    # Backward-compatible raw razorpay fields (optional)
     razorpay_order_id = models.CharField(max_length=100, blank=True, null=True)
     razorpay_payment_id = models.CharField(max_length=100, blank=True, null=True)
     razorpay_signature = models.CharField(max_length=200, blank=True, null=True)
-    amount = models.DecimalField(max_digits=10, decimal_places=2)
     status = models.CharField(max_length=15, choices=STATUS_CHOICES, default='pending')
     created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
 
     def __str__(self):
         return f"Payment #{self.id} - {self.user.username} - Rs.{self.amount} ({self.get_status_display()})"

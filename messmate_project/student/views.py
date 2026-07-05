@@ -1,7 +1,10 @@
 import datetime
 import random
+from decimal import Decimal, InvalidOperation
 from django.shortcuts import render, redirect, get_object_or_404
 from django.contrib.auth.decorators import login_required
+from django.views.decorators.http import require_POST
+from core.decorators import student_required
 from django.contrib import messages
 from django.http import HttpResponse, JsonResponse
 from django.utils import timezone
@@ -27,7 +30,7 @@ except ImportError:
     HAS_REPORTLAB = False
 
 
-@login_required(login_url='login')
+@student_required
 def student_dashboard(request):
     """
     Displays the student dashboard showing subscription status, wallet balance, active orders, and notifications.
@@ -66,7 +69,7 @@ def student_dashboard(request):
     return render(request, 'student/dashboard.html', context)
 
 
-@login_required(login_url='login')
+@student_required
 def edit_profile(request):
     """
     Allows the student to edit their profile information and upload a photo.
@@ -92,7 +95,7 @@ def edit_profile(request):
     return render(request, 'student/edit_profile.html', {'profile': profile})
 
 
-@login_required(login_url='login')
+@student_required
 def wallet_detail(request):
     """
     Wallet system: add money, check balance and transaction logs.
@@ -107,22 +110,23 @@ def wallet_detail(request):
         amount_str = request.POST.get('amount')
         promo_code = request.POST.get('promo_code', '').strip().upper()
         try:
-            amount = float(amount_str)
-            if amount <= 0:
-                raise ValueError
-                
+            amount = Decimal(str(amount_str))
+            if amount <= Decimal('0'):
+                raise InvalidOperation
+
             # Simulate Razorpay deposit flow
             with transaction.atomic():
-                profile.wallet_balance += datetime.datetime.now().microsecond % 2 == 0 and float(amount) or float(amount)
-                
-                # Apply cashback heuristic (e.g. SMARTMESS10 promo code)
-                cashback = 0.0
+                # Use Decimal arithmetic for money fields
+                profile.wallet_balance = (profile.wallet_balance or Decimal('0')) + amount
+
+                # Apply cashback heuristic (e.g. SMART10 promo code)
+                cashback = Decimal('0')
                 if promo_code == "SMART10":
-                    cashback = amount * 0.1
-                    profile.cashback_balance += cashback
-                    
+                    cashback = (amount * Decimal('0.1')).quantize(Decimal('0.01'))
+                    profile.cashback_balance = (profile.cashback_balance or Decimal('0')) + cashback
+
                 profile.save()
-                
+
                 # Create transactions
                 WalletTransaction.objects.create(
                     user=request.user,
@@ -140,13 +144,13 @@ def wallet_detail(request):
 
             messages.success(request, f"Successfully deposited Rs.{amount} to your wallet! {f'Rs.{cashback} cashback credited.' if cashback > 0 else ''}")
             return redirect('wallet_detail')
-        except ValueError:
+        except (InvalidOperation, TypeError):
             messages.error(request, "Please enter a valid deposit amount.")
             
     return render(request, 'student/wallet.html', {'profile': profile, 'transactions': txs})
 
 
-@login_required(login_url='login')
+@student_required
 def mess_detail(request, mess_id):
     """
     Details page of a mess showcasing subscription pricing, menu, ratings, reviews.
@@ -166,7 +170,7 @@ def mess_detail(request, mess_id):
     })
 
 
-@login_required(login_url='login')
+@student_required
 def subscribe_plan(request, mess_id):
     """
     Creates a new monthly subscription using wallet balance or Razorpay checkout simulation.
@@ -211,8 +215,8 @@ def subscribe_plan(request, mess_id):
                 profile.wallet_balance -= remaining_price
             profile.save()
             
-            # Cancel any existing active subscriptions first
-            Subscription.objects.filter(student=request.user, status='active').update(status='expired')
+            # Cancel any existing active subscriptions for the same mess first
+            Subscription.objects.filter(student=request.user, mess=mess, status='active').update(status='expired')
             
             # Create subscription
             today = datetime.date.today()
@@ -261,7 +265,8 @@ def subscribe_plan(request, mess_id):
     return redirect('mess_detail', mess_id=mess.id)
 
 
-@login_required(login_url='login')
+@require_POST
+@student_required
 def pause_subscription(request, sub_id):
     sub = get_object_or_404(Subscription, id=sub_id, student=request.user)
     if sub.status == 'active':
@@ -278,7 +283,8 @@ def pause_subscription(request, sub_id):
     return redirect('student_dashboard')
 
 
-@login_required(login_url='login')
+@require_POST
+@student_required
 def resume_subscription(request, sub_id):
     sub = get_object_or_404(Subscription, id=sub_id, student=request.user)
     if sub.status == 'paused':
@@ -295,7 +301,8 @@ def resume_subscription(request, sub_id):
     return redirect('student_dashboard')
 
 
-@login_required(login_url='login')
+@require_POST
+@student_required
 def cancel_subscription(request, sub_id):
     sub = get_object_or_404(Subscription, id=sub_id, student=request.user)
     if sub.status in ['active', 'paused']:
@@ -308,8 +315,8 @@ def cancel_subscription(request, sub_id):
             refund_days = sub.pause_remaining_days if sub.pause_date else max(1, (sub.end_date - datetime.date.today()).days)
             refund_amount = round(rate_per_day * refund_days * 0.8, 2)
             
-            profile = request.user.student_profile
-            profile.wallet_balance += refund_amount
+            profile, _ = StudentProfile.objects.get_or_create(user=request.user)
+            profile.wallet_balance = (profile.wallet_balance or Decimal('0')) + Decimal(str(refund_amount))
             profile.save()
             
             WalletTransaction.objects.create(
@@ -326,14 +333,15 @@ def cancel_subscription(request, sub_id):
 
 
 # TIFFIN ORDERING & CART SYSTEM
-@login_required(login_url='login')
+@student_required
 def view_cart(request):
     cart, _ = Cart.objects.get_or_create(student=request.user)
     items = cart.items.all()
     return render(request, 'student/cart.html', {'cart': cart, 'items': items})
 
 
-@login_required(login_url='login')
+@require_POST
+@student_required
 def add_to_cart(request, meal_id):
     meal = get_object_or_404(Meal, id=meal_id)
     cart, _ = Cart.objects.get_or_create(student=request.user)
@@ -353,7 +361,8 @@ def add_to_cart(request, meal_id):
     return redirect('view_cart')
 
 
-@login_required(login_url='login')
+@require_POST
+@student_required
 def update_cart(request, item_id):
     item = get_object_or_404(CartItem, id=item_id, cart__student=request.user)
     action = request.POST.get('action')
@@ -372,15 +381,19 @@ def update_cart(request, item_id):
     return redirect('view_cart')
 
 
-@login_required(login_url='login')
+@student_required
 def checkout_cart(request):
     cart = get_object_or_404(Cart, student=request.user)
     if not cart.items.exists():
         messages.error(request, "Your cart is empty.")
         return redirect('view_cart')
         
-    profile = request.user.student_profile
-    total_cost = cart.total_price
+    profile, _ = StudentProfile.objects.get_or_create(user=request.user)
+    # Ensure Decimal arithmetic for totals
+    try:
+        total_cost = Decimal(cart.total_price)
+    except Exception:
+        total_cost = Decimal(str(cart.total_price))
     
     if request.method == "POST":
         payment_method = request.POST.get('payment_method') # wallet or online
@@ -447,48 +460,28 @@ def checkout_cart(request):
             return redirect('student_dashboard')
             
         else:
-            # Online checkout simulation (Razorpay)
-            with transaction.atomic():
-                mess = cart.items.first().meal.mess
-                otp = f"{random.randint(100000, 999999)}"
-                order = Order.objects.create(
-                    student=request.user,
-                    mess=mess,
-                    total_amount=total_cost,
-                    status='pending',
-                    delivery_otp=otp
-                )
-                for item in cart.items.all():
-                    OrderItem.objects.create(
-                        order=order,
-                        meal=item.meal,
-                        quantity=item.quantity,
-                        price=item.meal.price
-                    )
-                cart.items.all().delete()
-                
-                Payment.objects.create(
-                    order=order,
-                    user=request.user,
-                    razorpay_order_id=f"order_rp_mock_{order.id}",
-                    razorpay_payment_id=f"pay_rp_mock_{order.id}",
-                    amount=total_cost,
-                    status='success' # simulation assumes instant success
-                )
-            messages.success(request, f"Order #{order.id} placed successfully via Online Card/UPI!")
-            return redirect('student_dashboard')
+            # Online checkout: create pending payment and redirect to payment page
+            payment = Payment.objects.create(
+                user=request.user,
+                amount=total_cost,
+                payment_method='online',
+                payment_gateway='razorpay',
+                status='pending'
+            )
+            return redirect('payment_page', payment_id=payment.payment_id)
 
     return render(request, 'student/checkout.html', {'cart': cart})
 
 
-@login_required(login_url='login')
+@student_required
 def track_order(request, order_id):
     order = get_object_or_404(Order, id=order_id, student=request.user)
     return render(request, 'student/track_order.html', {'order': order})
 
 
 # REVIEWS AND RATINGS
-@login_required(login_url='login')
+@require_POST
+@student_required
 def add_review(request, mess_id):
     mess = get_object_or_404(Mess, id=mess_id)
     if request.method == "POST":
@@ -513,7 +506,7 @@ def add_review(request, mess_id):
 
 
 # COMPLAINT MANAGEMENT
-@login_required(login_url='login')
+@student_required
 def submit_complaint(request):
     if request.method == "POST":
         description = request.POST.get('description')
@@ -544,7 +537,7 @@ def submit_complaint(request):
 
 
 # GENERATE PDF INVOICES
-@login_required(login_url='login')
+@student_required
 def download_invoice(request, payment_id):
     payment = Payment.objects.filter(id=payment_id, user=request.user).first()
     transaction = None

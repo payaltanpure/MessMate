@@ -16,3 +16,15 @@ def vendor_required(view_func):
         return view_func(request, *args, **kwargs)
 
     return _wrapped_view
+
+
+def student_required(view_func):
+    @wraps(view_func)
+    @login_required(login_url='login')
+    def _wrapped_view(request, *args, **kwargs):
+        if request.user.role != 'student':
+            messages.error(request, 'Access Denied. Students only.')
+            return redirect('login')
+        return view_func(request, *args, **kwargs)
+
+    return _wrapped_view

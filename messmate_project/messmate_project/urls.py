@@ -27,6 +27,7 @@ urlpatterns = [
 
     path('student/', include('student.urls')),
     path('vendor/', include('vendor.urls')),
+    path('payments/', include('payments.urls')),  # Include payments app URLs
     
     # REST APIs & Swagger Doc paths
     path('api/', include('core.api.urls')),

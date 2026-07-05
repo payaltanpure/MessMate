@@ -1,0 +1,56 @@
+{% extends "base.html" %}
+
+{% block title %}Complete Payment - SMARTMESS AI{% endblock %}
+
+{% block content %}
+<div class="container py-5">
+    <div class="row justify-content-center">
+        <div class="col-md-8">
+            <div class="card p-4 border-0 shadow-sm">
+                <h2 class="h4 mb-4">Complete Your Payment</h2>
+                <div class="mb-4">
+                    <h5>Order Summary</h5>
+                    {% if subscription %}
+                        <div class="p-3 bg-white rounded-3 border mb-3">
+                            <h5 class="mb-2">Subscription Details</h5>
+                            <p class="mb-1"><strong>Mess:</strong> {{ subscription.mess.mess_name }}</p>
+                            <p class="mb-1"><strong>Plan:</strong> {{ subscription.get_plan_type_display }}</p>
+                            <p class="mb-0"><strong>Duration:</strong> 30 days</p>
+                        </div>
+                    {% elif order_items %}
+                        <ul class="list-group mb-3">
+                            {% for item in order_items %}
+                            <li class="list-group-item d-flex justify-content-between align-items-center">
+                                <span>{{ item.quantity }} x {{ item.meal.name }}</span>
+                                <span>Rs. {{ item.total_price }}</span>
+                            </li>
+                            {% endfor %}
+                        </ul>
+                    {% else %}
+                        <div class="alert alert-warning">No cart items found for payment. Please add items and try again.</div>
+                    {% endif %}
+                    <div class="d-flex justify-content-between align-items-center p-3 bg-light rounded-3">
+                        <div>
+                            <div class="fw-bold">Amount to Pay</div>
+                            <div class="text-muted">Rs. {{ payment.amount }}</div>
+                        </div>
+                        <div>
+                            <div class="fw-bold">Payment Method</div>
+                            <div class="text-primary">{{ payment.payment_method|title }} via {{ payment.payment_gateway|title }}</div>
+                        </div>
+                    </div>
+                </div>
+                <form method="POST" action="{% url 'process_payment' payment.payment_id %}">
+                    {% csrf_token %}
+                    <button type="submit" class="btn btn-gradient w-100 rounded-pill py-2">Pay Now</button>
+                </form>
+                <form method="POST" action="{% url 'process_payment' payment.payment_id %}" class="mt-3">
+                    {% csrf_token %}
+                    <input type="hidden" name="simulate_failure" value="true">
+                    <button type="submit" class="btn btn-outline-danger w-100 rounded-pill py-2">Simulate Failure</button>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
