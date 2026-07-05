@@ -1,23 +1,22 @@
+import os
+
 from django.shortcuts import render, redirect, get_object_or_404
-from django.contrib.auth.decorators import login_required
 from django.contrib import messages
-from django.db.models import Sum, Count
+from django.db.models import Q, Sum, Count
 
 from accounts.models import VendorProfile
 from vendor.models import Mess, Meal
 from student.models import Order, Subscription, Review, Complaint, Payment
 from core.ai_services import forecast_demand, predict_food_waste
+from core.decorators import vendor_required
 
 
-@login_required(login_url='login')
+@vendor_required
 def vendor_dashboard(request):
     """
     Displays Vendor Dashboard with comprehensive financial analytics, AI demand forecasting,
     food waste predictions, and sentiment metrics.
     """
-    if request.user.role != 'vendor':
-        messages.error(request, "Access Denied. Vendors only.")
-        return redirect('login')
 
     messes = Mess.objects.filter(vendor=request.user)
     first_mess = messes.first()
@@ -69,11 +68,8 @@ def vendor_dashboard(request):
     return render(request, 'vendor/dashboard.html', context)
 
 
-@login_required(login_url='login')
+@vendor_required
 def add_mess(request):
-    if request.user.role != 'vendor':
-        return redirect('login')
-
     if request.method == "POST":
         mess_name = request.POST.get('mess_name')
         address = request.POST.get('address')
@@ -100,11 +96,11 @@ def add_mess(request):
             description=description,
             diet_type=diet_type,
             location_name=location_name,
-            distance=float(distance),
-            monthly_price_lunch=float(monthly_price_lunch),
-            monthly_price_dinner=float(monthly_price_dinner),
-            monthly_price_both=float(monthly_price_both),
-            daily_tiffin_price=float(daily_tiffin_price)
+            distance=float(distance or 1.0),
+            monthly_price_lunch=float(monthly_price_lunch or 0.00),
+            monthly_price_dinner=float(monthly_price_dinner or 0.00),
+            monthly_price_both=float(monthly_price_both or 0.00),
+            daily_tiffin_price=float(daily_tiffin_price or 0.00)
         )
 
         messages.success(request, "Mess created successfully!")
@@ -113,16 +109,13 @@ def add_mess(request):
     return render(request, 'vendor/add_mess.html')
 
 
-@login_required(login_url='login')
+@vendor_required
 def manage_mess(request):
-    if request.user.role != 'vendor':
-        return redirect('login')
-
     messes = Mess.objects.filter(vendor=request.user)
     return render(request, 'vendor/manage_mess.html', {'messes': messes})
 
 
-@login_required(login_url='login')
+@vendor_required
 def edit_mess(request, mess_id):
     mess = get_object_or_404(Mess, id=mess_id, vendor=request.user)
     if request.method == "POST":
@@ -132,11 +125,11 @@ def edit_mess(request, mess_id):
         mess.description = request.POST.get('description')
         mess.diet_type = request.POST.get('diet_type')
         mess.location_name = request.POST.get('location_name')
-        mess.distance = float(request.POST.get('distance', 1.0))
-        mess.monthly_price_lunch = float(request.POST.get('monthly_price_lunch', 0))
-        mess.monthly_price_dinner = float(request.POST.get('monthly_price_dinner', 0))
-        mess.monthly_price_both = float(request.POST.get('monthly_price_both', 0))
-        mess.daily_tiffin_price = float(request.POST.get('daily_tiffin_price', 0))
+        mess.distance = float(request.POST.get('distance') or 1.0)
+        mess.monthly_price_lunch = float(request.POST.get('monthly_price_lunch') or 0.0)
+        mess.monthly_price_dinner = float(request.POST.get('monthly_price_dinner') or 0.0)
+        mess.monthly_price_both = float(request.POST.get('monthly_price_both') or 0.0)
+        mess.daily_tiffin_price = float(request.POST.get('daily_tiffin_price') or 0.0)
         mess.save()
         messages.success(request, "Mess updated successfully!")
         return redirect('manage_mess')
@@ -144,29 +137,27 @@ def edit_mess(request, mess_id):
     return render(request, 'vendor/edit_mess.html', {'mess': mess})
 
 
-@login_required(login_url='login')
+@vendor_required
 def delete_mess(request, mess_id):
+    if request.method != 'POST':
+        messages.error(request, 'Invalid delete request.')
+        return redirect('manage_mess')
+
     mess = get_object_or_404(Mess, id=mess_id, vendor=request.user)
     mess.delete()
     messages.success(request, "Mess deleted successfully!")
     return redirect('manage_mess')
 
 
-@login_required(login_url='login')
+@vendor_required
 def manage_meals(request, mess_id):
-    if request.user.role != 'vendor':
-        return redirect('login')
-
     mess = get_object_or_404(Mess, id=mess_id, vendor=request.user)
     meals = Meal.objects.filter(mess=mess)
     return render(request, 'vendor/manage_meals.html', {'mess': mess, 'meals': meals})
 
 
-@login_required(login_url='login')
+@vendor_required
 def add_meal(request, mess_id):
-    if request.user.role != 'vendor':
-        return redirect('login')
-
     mess = get_object_or_404(Mess, id=mess_id, vendor=request.user)
 
     if request.method == "POST":
@@ -189,7 +180,7 @@ def add_meal(request, mess_id):
     return render(request, 'vendor/add_meal.html', {'mess': mess})
 
 
-@login_required(login_url='login')
+@vendor_required
 def edit_meal(request, meal_id):
     meal = get_object_or_404(Meal, id=meal_id, mess__vendor=request.user)
     if request.method == "POST":
@@ -205,53 +196,60 @@ def edit_meal(request, meal_id):
     return render(request, 'vendor/edit_meal.html', {'meal': meal})
 
 
-@login_required(login_url='login')
+@vendor_required
 def delete_meal(request, meal_id):
     meal = get_object_or_404(Meal, id=meal_id, mess__vendor=request.user)
+    if request.method != 'POST':
+        messages.error(request, 'Invalid delete request.')
+        return redirect('manage_meals', mess_id=meal.mess.id)
+
     mess_id = meal.mess.id
     meal.delete()
     messages.success(request, "Meal deleted successfully!")
     return redirect('manage_meals', mess_id=mess_id)
 
 
-@login_required(login_url='login')
+@vendor_required
 def orders(request):
-    if request.user.role != 'vendor':
-        return redirect('login')
-
     messes = Mess.objects.filter(vendor=request.user)
     vendor_orders = Order.objects.filter(mess__in=messes).order_by('-order_date')
     return render(request, 'vendor/orders.html', {'orders': vendor_orders})
 
 
-@login_required(login_url='login')
+@vendor_required
 def update_order_status(request, order_id):
     order = get_object_or_404(Order, id=order_id, mess__vendor=request.user)
     if request.method == "POST":
         new_status = request.POST.get('status')
-        order.status = new_status
-        order.save()
-        messages.success(request, f"Order #{order.id} status updated to {new_status.replace('_', ' ').title()}.")
+        allowed_statuses = [choice[0] for choice in Order.STATUS_CHOICES]
+        if new_status in allowed_statuses:
+            order.status = new_status
+            order.save()
+            messages.success(request, f"Order #{order.id} status updated to {new_status.replace('_', ' ').title()}.")
+        else:
+            messages.error(request, "Invalid order status.")
     return redirect('vendor_orders')
 
 
-@login_required(login_url='login')
+@vendor_required
 def earnings(request):
-    if request.user.role != 'vendor':
-        return redirect('login')
-        
     messes = Mess.objects.filter(vendor=request.user)
-    # Summarize payments
-    payments = Payment.objects.filter(order__mess__in=messes, status='success') | Payment.objects.filter(subscription__mess__in=messes, status='success')
+    payments = Payment.objects.filter(
+        Q(status='success') & (Q(order__mess__in=messes) | Q(subscription__mess__in=messes))
+    ).order_by('-created_at')
     return render(request, 'vendor/earnings.html', {'payments': payments})
 
 
-@login_required(login_url='login')
+@vendor_required
 def profile(request):
-    if request.user.role != 'vendor':
-        return redirect('login')
-
-    profile, _ = VendorProfile.objects.get_or_create(user=request.user)
+    profile, _ = VendorProfile.objects.get_or_create(
+        user=request.user,
+        defaults={
+            'business_name': '',
+            'business_address': '',
+            'contact_number': '',
+        }
+    )
     if request.method == "POST":
         profile.business_name = request.POST.get('business_name')
         profile.business_address = request.POST.get('business_address')
@@ -259,7 +257,14 @@ def profile(request):
         profile.gst_number = request.POST.get('gst_number')
         profile.fssai_license = request.POST.get('fssai_license')
         if 'documents' in request.FILES:
-            profile.documents = request.FILES['documents']
+            uploaded_file = request.FILES['documents']
+            allowed_extensions = ['.pdf', '.png', '.jpg', '.jpeg', '.gif']
+            max_size = 5 * 1024 * 1024
+            extension = os.path.splitext(uploaded_file.name)[1].lower()
+            if extension not in allowed_extensions or uploaded_file.size > max_size:
+                messages.error(request, "Invalid document upload. Please upload PDF/JPG/PNG/GIF under 5MB.")
+                return redirect('vendor_profile')
+            profile.documents = uploaded_file
         profile.save()
         
         request.user.first_name = request.POST.get('first_name', '')
@@ -272,7 +277,7 @@ def profile(request):
     return render(request, 'vendor/profile.html', {'profile': profile})
 
 
-@login_required(login_url='login')
+@vendor_required
 def respond_complaint(request, complaint_id):
     complaint = get_object_or_404(Complaint, id=complaint_id, mess__vendor=request.user)
     if request.method == "POST":
@@ -284,11 +289,9 @@ def respond_complaint(request, complaint_id):
     return redirect('vendor_dashboard')
 
 
-@login_required(login_url='login')
+@vendor_required
 def subscriptions(request):
-    if request.user.role != 'vendor':
-        return redirect('login')
-        
     messes = Mess.objects.filter(vendor=request.user)
     vendor_subscriptions = Subscription.objects.filter(mess__in=messes).order_by('-start_date')
     return render(request, 'vendor/subscriptions.html', {'subscriptions': vendor_subscriptions})
+

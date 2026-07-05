@@ -1,4 +1,5 @@
 import datetime
+import random
 from django.shortcuts import render, redirect, get_object_or_404
 from django.contrib.auth.decorators import login_required
 from django.contrib import messages
@@ -73,7 +74,7 @@ def edit_profile(request):
     if request.user.role != 'student':
         return redirect('login')
         
-    profile = request.user.student_profile
+    profile, _ = StudentProfile.objects.get_or_create(user=request.user)
     if request.method == "POST":
         request.user.first_name = request.POST.get('first_name', '')
         request.user.last_name = request.POST.get('last_name', '')
@@ -99,7 +100,7 @@ def wallet_detail(request):
     if request.user.role != 'student':
         return redirect('login')
         
-    profile = request.user.student_profile
+    profile, _ = StudentProfile.objects.get_or_create(user=request.user)
     txs = WalletTransaction.objects.filter(user=request.user).order_by('-created_at')
     
     if request.method == "POST":
@@ -174,7 +175,7 @@ def subscribe_plan(request, mess_id):
         return redirect('login')
         
     mess = get_object_or_404(Mess, id=mess_id)
-    profile = request.user.student_profile
+    profile, _ = StudentProfile.objects.get_or_create(user=request.user)
     
     if request.method == "POST":
         plan_type = request.POST.get('plan_type') # lunch, dinner, both
@@ -518,12 +519,13 @@ def submit_complaint(request):
         description = request.POST.get('description')
         mess_id = request.POST.get('mess_id')
         order_id = request.POST.get('order_id')
+        category = request.POST.get('category')
         
         mess = Mess.objects.filter(id=mess_id).first() if mess_id else None
         order = Order.objects.filter(id=order_id).first() if order_id else None
         
-        # AI complaint classification
-        category = classify_complaint_nlp(description)
+        if not category:
+            category = classify_complaint_nlp(description)
         
         Complaint.objects.create(
             student=request.user,
@@ -544,10 +546,30 @@ def submit_complaint(request):
 # GENERATE PDF INVOICES
 @login_required(login_url='login')
 def download_invoice(request, payment_id):
-    payment = get_object_or_404(Payment, id=payment_id, user=request.user)
-    
+    payment = Payment.objects.filter(id=payment_id, user=request.user).first()
+    transaction = None
+    if not payment:
+        transaction = WalletTransaction.objects.filter(id=payment_id, user=request.user).first()
+        if not transaction:
+            return get_object_or_404(Payment, id=payment_id, user=request.user)
+
+    invoice_id = payment.id if payment else transaction.id
+    invoice_user = payment.user if payment else transaction.user
+    invoice_date = payment.created_at if payment else transaction.created_at
+    invoice_amount = payment.amount if payment else transaction.amount
+    invoice_desc = ''
+    if payment:
+        if payment.subscription:
+            invoice_desc = f"Monthly Subscription to {payment.subscription.mess.mess_name}"
+        elif payment.order:
+            invoice_desc = f"Tiffin Order #{payment.order.id} from {payment.order.mess.mess_name}"
+        else:
+            invoice_desc = "Wallet Funding Deposit"
+    else:
+        invoice_desc = transaction.description
+
     response = HttpResponse(content_type='application/pdf')
-    response['Content-Disposition'] = f'attachment; filename="invoice_{payment.id}.pdf"'
+    response['Content-Disposition'] = f'attachment; filename="invoice_{invoice_id}.pdf"'
     
     if HAS_REPORTLAB:
         # Create standard PDF layout
@@ -555,30 +577,23 @@ def download_invoice(request, payment_id):
         p.setFont("Helvetica-Bold", 20)
         p.drawString(100, 750, "SMARTMESS AI - INVOICE")
         p.setFont("Helvetica", 12)
-        p.drawString(100, 720, f"Invoice ID: {payment.id}")
-        p.drawString(100, 700, f"Date: {payment.created_at.strftime('%Y-%m-%d %H:%M')}")
-        p.drawString(100, 680, f"Customer: {payment.user.username}")
-        p.drawString(100, 660, f"Email: {payment.user.email}")
+        p.drawString(100, 720, f"Invoice ID: {invoice_id}")
+        p.drawString(100, 700, f"Date: {invoice_date.strftime('%Y-%m-%d %H:%M')}")
+        p.drawString(100, 680, f"Customer: {invoice_user.username}")
+        p.drawString(100, 660, f"Email: {invoice_user.email}")
         
         p.line(100, 640, 500, 640)
         
         p.drawString(100, 610, "Description")
         p.drawString(400, 610, "Amount")
         
-        if payment.subscription:
-            desc = f"Monthly Mess Subscription to {payment.subscription.mess.mess_name}"
-        elif payment.order:
-            desc = f"Tiffin Order #{payment.order.id} from {payment.order.mess.mess_name}"
-        else:
-            desc = "Wallet Funding Deposit"
-            
-        p.drawString(100, 580, desc)
-        p.drawString(400, 580, f"Rs. {payment.amount}")
+        p.drawString(100, 580, invoice_desc)
+        p.drawString(400, 580, f"Rs. {invoice_amount}")
         
         p.line(100, 550, 500, 550)
         
         p.drawString(300, 520, "Total Paid:")
-        p.drawString(400, 520, f"Rs. {payment.amount}")
+        p.drawString(400, 520, f"Rs. {invoice_amount}")
         
         p.setFont("Helvetica-Bold", 10)
         p.drawString(100, 450, "Thank you for using SMARTMESS AI!")
@@ -591,7 +606,7 @@ def download_invoice(request, payment_id):
         invoice_html = f"""
         <html>
         <head>
-            <title>Invoice {payment.id}</title>
+            <title>Invoice {invoice_id}</title>
             <style>
                 body {{ font-family: Arial, sans-serif; margin: 50px; color: #333; }}
                 .header {{ border-bottom: 2px solid #ccc; padding-bottom: 20px; margin-bottom: 30px; }}
@@ -609,9 +624,9 @@ def download_invoice(request, payment_id):
                 <p>Hostel Mess & Tiffin Management Invoice</p>
             </div>
             <div class="details">
-                <p><strong>Invoice ID:</strong> {payment.id}</p>
-                <p><strong>Date:</strong> {payment.created_at.strftime('%Y-%m-%d %H:%M')}</p>
-                <p><strong>Customer:</strong> {payment.user.username} ({payment.user.email})</p>
+                <p><strong>Invoice ID:</strong> {invoice_id}</p>
+                <p><strong>Date:</strong> {invoice_date.strftime('%Y-%m-%d %H:%M')}</p>
+                <p><strong>Customer:</strong> {invoice_user.username} ({invoice_user.email})</p>
             </div>
             <table>
                 <thead>
@@ -623,14 +638,14 @@ def download_invoice(request, payment_id):
                 <tbody>
                     <tr>
                         <td>
-                            {"Monthly Subscription" if payment.subscription else "Tiffin Order" if payment.order else "Wallet Deposit"}
+                            {invoice_desc}
                         </td>
-                        <td>Rs. {payment.amount}</td>
+                        <td>Rs. {invoice_amount}</td>
                     </tr>
                 </tbody>
             </table>
             <div class="total">
-                Total Paid: Rs. {payment.amount}
+                Total Paid: Rs. {invoice_amount}
             </div>
             <p style="margin-top:50px; font-size:0.9em; color:#777; text-align:center;">
                 Thank you for using SMARTMESS AI! (ReportLab not installed; printable fallback output displayed)

@@ -1,0 +1,58 @@
+{% extends "base.html" %}
+
+{% block title %}Submit a Complaint - SMARTMESS AI{% endblock %}
+
+{% block content %}
+<div class="container py-4">
+    <div class="row justify-content-center">
+        <div class="col-lg-8">
+            <div class="card glass-card border-0 shadow-sm p-4">
+                <h1 class="h4 mb-3">Raise a Complaint</h1>
+                <p class="text-secondary mb-4">Please provide details so we can resolve your issue quickly.</p>
+
+                <form method="POST">
+                    {% csrf_token %}
+                    <div class="mb-3">
+                        <label for="description" class="form-label fw-bold">Complaint Description</label>
+                        <textarea id="description" name="description" class="form-control" rows="5" placeholder="Describe your issue in detail" required></textarea>
+                    </div>
+
+                    <div class="mb-3">
+                        <label for="category" class="form-label fw-bold">Complaint Category</label>
+                        <select id="category" name="category" class="form-select" required>
+                            <option value="" selected disabled>Select a category</option>
+                            <option value="food_quality">Food Quality</option>
+                            <option value="delivery_delay">Delivery Delay</option>
+                            <option value="payment_issue">Payment Issue</option>
+                            <option value="subscription_problem">Subscription Problem</option>
+                            <option value="other">Other</option>
+                        </select>
+                    </div>
+
+                    <div class="mb-3">
+                        <label for="mess_id" class="form-label fw-bold">Related Mess (Optional)</label>
+                        <select id="mess_id" name="mess_id" class="form-select">
+                            <option value="" selected>None</option>
+                            {% for mess in messes %}
+                                <option value="{{ mess.id }}">{{ mess.mess_name }}</option>
+                            {% endfor %}
+                        </select>
+                    </div>
+
+                    <div class="mb-4">
+                        <label for="order_id" class="form-label fw-bold">Related Order (Optional)</label>
+                        <select id="order_id" name="order_id" class="form-select">
+                            <option value="" selected>None</option>
+                            {% for order in orders %}
+                                <option value="{{ order.id }}">Order #{{ order.id }} - {{ order.mess.mess_name }}</option>
+                            {% endfor %}
+                        </select>
+                    </div>
+
+                    <button type="submit" class="btn btn-danger btn-gradient w-100 rounded-pill py-2">Submit Complaint</button>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
