@@ -5,13 +5,23 @@ from django.views.decorators.http import require_POST
 from django.contrib import messages
 from django.http import JsonResponse
 from django.core.paginator import Paginator
+from django.urls import reverse
 from decimal import Decimal
 from django.db import transaction
 from django.utils import timezone
-
+from razorpay.errors import SignatureVerificationError
 from core.decorators import student_required, vendor_required
+from accounts.models import StudentProfile
 from student.models import Payment, WalletTransaction, Order, OrderItem, Cart, Subscription
-from payments.services import RazorpayGateway, create_payment_record, finalize_successful_payment, process_refund
+from payments.services import (
+    RazorpayGateway,
+    create_payment_record,
+    create_razorpay_order,
+    verify_payment_signature,
+    mark_payment_success,
+    mark_payment_failed,
+    refund_payment
+)
 
 
 @require_POST
@@ -44,32 +54,93 @@ def create_payment(request):
 @require_POST
 @student_required
 def verify_payment(request):
-    # Simulated verification endpoint
     payment_id = request.POST.get('payment_id')
-    gateway_txn_id = request.POST.get('gateway_txn_id')
-    signature = request.POST.get('signature')
+    razorpay_order_id = request.POST.get('razorpay_order_id') or request.POST.get('order_id')
+    razorpay_payment_id = request.POST.get('razorpay_payment_id')
+    razorpay_signature = request.POST.get('razorpay_signature')
 
-    payment = get_object_or_404(Payment, payment_id=payment_id, user=request.user)
-    gateway = RazorpayGateway()
-    payload = gateway_txn_id or ''
-    ok = gateway.verify_signature(payload, signature)
-    if not ok:
-        payment.status = 'failed'
-        payment.save()
-        return JsonResponse({'error': 'Signature verification failed'}, status=400)
+    if not all([razorpay_order_id, razorpay_payment_id, razorpay_signature]):
+        return JsonResponse({'error': 'Missing payment verification data.'}, status=400)
 
-    # finalize
-    finalize_successful_payment(payment, gateway_txn_id)
+    payment = None
+    if payment_id:
+        payment = Payment.objects.filter(payment_id=payment_id, user=request.user).first()
+    if not payment and razorpay_order_id:
+        payment = Payment.objects.filter(user=request.user, razorpay_order_id=razorpay_order_id).first()
+    if not payment and razorpay_payment_id:
+        payment = Payment.objects.filter(user=request.user, razorpay_payment_id=razorpay_payment_id).first()
+    if not payment:
+        return JsonResponse({'error': 'Payment record not found.'}, status=404)
 
-    # Update related order/subscription states
-    if payment.order:
-        payment.order.status = 'pending' if payment.order.status == 'pending' else payment.order.status
-        payment.order.save()
-    if payment.subscription:
-        payment.subscription.status = 'active'
-        payment.subscription.save()
+    if payment.status != 'pending':
+        return JsonResponse({'error': 'Payment already processed.'}, status=400)
 
-    return JsonResponse({'status': 'success'})
+    try:
+        verify_payment_signature(razorpay_order_id, razorpay_payment_id, razorpay_signature)
+    except SignatureVerificationError as exc:
+        mark_payment_failed(payment, reason=str(exc))
+        return JsonResponse({'error': 'Signature verification failed.', 'details': str(exc)}, status=400)
+    except Exception as exc:
+        mark_payment_failed(payment, reason=str(exc))
+        return JsonResponse({'error': 'Verification error.', 'details': str(exc)}, status=500)
+
+    with transaction.atomic():
+        mark_payment_success(
+            payment,
+            razorpay_order_id=razorpay_order_id,
+            razorpay_payment_id=razorpay_payment_id,
+            razorpay_signature=razorpay_signature,
+            gateway_transaction_id=razorpay_payment_id
+        )
+
+        if not payment.order and not payment.subscription:
+            cart = Cart.objects.filter(student=request.user).first()
+            if cart and cart.items.exists() and cart.total_price == payment.amount:
+                mess = cart.items.first().meal.mess
+                otp = f"{random.randint(100000, 999999)}"
+                order = Order.objects.create(
+                    student=request.user,
+                    mess=mess,
+                    total_amount=payment.amount,
+                    status='pending',
+                    delivery_otp=otp
+                )
+
+                for item in cart.items.all():
+                    OrderItem.objects.create(
+                        order=order,
+                        meal=item.meal,
+                        quantity=item.quantity,
+                        price=item.meal.price
+                    )
+
+                    if hasattr(item.meal, 'stock'):
+                        item.meal.stock = max(0, item.meal.stock - item.quantity)
+                        item.meal.save()
+
+                cart.items.all().delete()
+
+                payment.order = order
+                payment.save()
+                WalletTransaction.objects.create(
+                    user=request.user,
+                    amount=payment.amount,
+                    transaction_type='order_payment',
+                    description=f"Order Payment for Order #{order.id}"
+                )
+            else:
+                profile, _ = StudentProfile.objects.get_or_create(user=request.user)
+                profile.wallet_balance = (profile.wallet_balance or Decimal('0')) + payment.amount
+                profile.save()
+                WalletTransaction.objects.create(
+                    user=request.user,
+                    amount=payment.amount,
+                    transaction_type='credit',
+                    description='Wallet Recharge via Razorpay'
+                )
+
+    success_url = request.build_absolute_uri(reverse('payment_success', args=[payment.payment_id]))
+    return JsonResponse({'status': 'success', 'redirect_url': success_url})
 
 
 @student_required
@@ -92,6 +163,12 @@ def payment_page(request, payment_id):
         'payment': payment,
         'order_items': order_items,
         'subscription': subscription,
+        'gateway_order': {
+            'id': payment.razorpay_order_id,
+            'amount': int(payment.amount * 100) if payment.amount else None,
+            'currency': 'INR'
+        } if payment.razorpay_order_id else None,
+        'razorpay_key_id': getattr(__import__('django.conf').conf.settings, 'RAZORPAY_KEY_ID', None),
     })
 
 
@@ -212,7 +289,7 @@ def wallet_recharge(request):
 
     # Create payment and auto-finalize for recharge (simulation)
     payment = create_payment_record(user=request.user, amount=amount_dec, payment_method='online', gateway='razorpay')
-    finalize_successful_payment(payment)
+    mark_payment_success(payment, gateway_transaction_id=str(payment.payment_id))
     # Credit to user's profile wallet
     profile = request.user.student_profile
     profile.wallet_balance = (profile.wallet_balance or Decimal('0')) + amount_dec
@@ -235,6 +312,6 @@ def admin_refund(request, payment_id):
     # Vendor/admin can trigger refunds for successful payments related to their messes
     payment = get_object_or_404(Payment, payment_id=payment_id)
     if request.method == 'POST':
-        process_refund(payment)
+        refund_payment(payment)
         messages.success(request, 'Refund processed')
     return redirect('vendor_earnings')

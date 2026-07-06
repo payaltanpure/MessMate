@@ -4,6 +4,7 @@ from decimal import Decimal, InvalidOperation
 from django.shortcuts import render, redirect, get_object_or_404
 from django.contrib.auth.decorators import login_required
 from django.views.decorators.http import require_POST
+from django.conf import settings
 from core.decorators import student_required
 from django.contrib import messages
 from django.http import HttpResponse, JsonResponse
@@ -20,6 +21,7 @@ from core.ai_services import (
     recommend_messes, recommend_meals, 
     analyze_review_sentiment, classify_complaint_nlp
 )
+from payments.services import create_payment_record, create_razorpay_order, mark_payment_success
 
 # PDF Generation Support
 try:
@@ -114,39 +116,39 @@ def wallet_detail(request):
             if amount <= Decimal('0'):
                 raise InvalidOperation
 
-            # Simulate Razorpay deposit flow
-            with transaction.atomic():
-                # Use Decimal arithmetic for money fields
-                profile.wallet_balance = (profile.wallet_balance or Decimal('0')) + amount
+            payment = create_payment_record(
+                user=request.user,
+                amount=amount,
+                payment_method='online',
+                gateway='razorpay'
+            )
+            razorpay_order_id = create_razorpay_order(
+                amount=amount,
+                receipt=str(payment.payment_id),
+                notes={
+                    'purpose': 'wallet_recharge',
+                    'user_id': str(request.user.id),
+                    'promo_code': promo_code or 'NONE'
+                }
+            )
+            payment.razorpay_order_id = razorpay_order_id
+            payment.save()
+            request.session[f'wallet_payment_{payment.payment_id}'] = promo_code or ''
 
-                # Apply cashback heuristic (e.g. SMART10 promo code)
-                cashback = Decimal('0')
-                if promo_code == "SMART10":
-                    cashback = (amount * Decimal('0.1')).quantize(Decimal('0.01'))
-                    profile.cashback_balance = (profile.cashback_balance or Decimal('0')) + cashback
-
-                profile.save()
-
-                # Create transactions
-                WalletTransaction.objects.create(
-                    user=request.user,
-                    amount=amount,
-                    transaction_type='credit',
-                    description=f"Added funds via Online Payment. Promo Code: {promo_code or 'None'}"
-                )
-                if cashback > 0:
-                    WalletTransaction.objects.create(
-                        user=request.user,
-                        amount=cashback,
-                        transaction_type='cashback',
-                        description="10% Cashback applied on funding wallet"
-                    )
-
-            messages.success(request, f"Successfully deposited Rs.{amount} to your wallet! {f'Rs.{cashback} cashback credited.' if cashback > 0 else ''}")
-            return redirect('wallet_detail')
+            return render(request, 'student/wallet.html', {
+                'profile': profile,
+                'transactions': txs,
+                'razorpay_order_id': razorpay_order_id,
+                'razorpay_key_id': settings.RAZORPAY_KEY_ID,
+                'amount': amount,
+                'payment_id': payment.payment_id,
+                'promo_code': promo_code,
+            })
         except (InvalidOperation, TypeError):
             messages.error(request, "Please enter a valid deposit amount.")
-            
+        except Exception as exc:
+            messages.error(request, f"Unable to initiate payment: {exc}")
+
     return render(request, 'student/wallet.html', {'profile': profile, 'transactions': txs})
 
 
@@ -183,6 +185,7 @@ def subscribe_plan(request, mess_id):
     
     if request.method == "POST":
         plan_type = request.POST.get('plan_type') # lunch, dinner, both
+        payment_method = request.POST.get('payment_method', 'wallet')
         
         # Calculate price based on choice
         if plan_type == 'lunch':
@@ -195,30 +198,74 @@ def subscribe_plan(request, mess_id):
         if price <= 0:
             messages.error(request, "Invalid plan or pricing.")
             return redirect('mess_detail', mess_id=mess.id)
-            
-        # Wallet logic
-        total_bal = profile.wallet_balance + profile.cashback_balance
-        if total_bal < price:
-            # Not enough money, prompt deposit
-            messages.error(request, f"Insufficient wallet balance. Plan costs Rs.{price}, you have Rs.{total_bal}.")
-            return redirect('wallet_detail')
-            
+
+        if payment_method not in ['wallet', 'online']:
+            payment_method = 'wallet'
+
+        if payment_method == 'wallet':
+            total_bal = profile.wallet_balance + profile.cashback_balance
+            if total_bal < price:
+                messages.error(request, f"Insufficient wallet balance. Plan costs Rs.{price}, you have Rs.{total_bal}.")
+                return redirect('wallet_detail')
+
+            with transaction.atomic():
+                # Deduct from cashback first, then main wallet
+                remaining_price = price
+                if profile.cashback_balance >= price:
+                    profile.cashback_balance -= price
+                    remaining_price = 0
+                else:
+                    remaining_price -= profile.cashback_balance
+                    profile.cashback_balance = 0
+                    profile.wallet_balance -= remaining_price
+                profile.save()
+
+                # Cancel any existing active subscriptions for the same mess first
+                Subscription.objects.filter(student=request.user, mess=mess, status='active').update(status='expired')
+
+                # Create subscription
+                today = datetime.date.today()
+                end = today + datetime.timedelta(days=30)
+                sub = Subscription.objects.create(
+                    student=request.user,
+                    mess=mess,
+                    plan_type=plan_type,
+                    start_date=today,
+                    end_date=end,
+                    price_paid=price,
+                    status='active',
+                    remaining_days=30,
+                    pause_remaining_days=30
+                )
+
+                payment = create_payment_record(
+                    user=request.user,
+                    amount=price,
+                    payment_method='wallet',
+                    gateway='wallet',
+                    subscription=sub
+                )
+                mark_payment_success(payment)
+
+                WalletTransaction.objects.create(
+                    user=request.user,
+                    amount=price,
+                    transaction_type='subscription_payment',
+                    description=f"Monthly Subscription to {mess.mess_name} ({plan_type.upper()})"
+                )
+
+                Notification.objects.create(
+                    user=request.user,
+                    title="Subscription Active!",
+                    message=f"You are now subscribed to {mess.mess_name} ({plan_type.upper()}) until {end}.",
+                    notification_type='email'
+                )
+
+            messages.success(request, f"Subscribed successfully to {mess.mess_name}!")
+            return redirect('student_dashboard')
+
+        # Online payment flow
         with transaction.atomic():
-            # Deduct from cashback first, then main wallet
-            remaining_price = price
-            if profile.cashback_balance >= price:
-                profile.cashback_balance -= price
-                remaining_price = 0
-            else:
-                remaining_price -= profile.cashback_balance
-                profile.cashback_balance = 0
-                profile.wallet_balance -= remaining_price
-            profile.save()
-            
-            # Cancel any existing active subscriptions for the same mess first
-            Subscription.objects.filter(student=request.user, mess=mess, status='active').update(status='expired')
-            
-            # Create subscription
             today = datetime.date.today()
             end = today + datetime.timedelta(days=30)
             sub = Subscription.objects.create(
@@ -228,39 +275,41 @@ def subscribe_plan(request, mess_id):
                 start_date=today,
                 end_date=end,
                 price_paid=price,
-                status='active',
-                remaining_days=30
-            )
-            
-            # Transaction log
-            WalletTransaction.objects.create(
-                user=request.user,
-                amount=price,
-                transaction_type='debit',
-                description=f"Monthly Subscription to {mess.mess_name} ({plan_type.upper()})"
-            )
-            
-            # Log Razorpay Payment Simulation
-            Payment.objects.create(
-                subscription=sub,
-                user=request.user,
-                razorpay_order_id="sub_rp_mock_" + str(sub.id),
-                razorpay_payment_id="pay_rp_mock_" + str(sub.id),
-                razorpay_signature="sig_mock",
-                amount=price,
-                status='success'
-            )
-            
-            # Notification log
-            Notification.objects.create(
-                user=request.user,
-                title="Subscription Active!",
-                message=f"You are now subscribed to {mess.mess_name} ({plan_type.upper()}) until {end}.",
-                notification_type='email'
+                status='expired',
+                remaining_days=30,
+                pause_remaining_days=30
             )
 
-        messages.success(request, f"Subscribed successfully to {mess.mess_name}!")
-        return redirect('student_dashboard')
+            payment = create_payment_record(
+                user=request.user,
+                amount=price,
+                payment_method='online',
+                gateway='razorpay',
+                subscription=sub
+            )
+
+            razorpay_order_id = create_razorpay_order(
+                amount=price,
+                receipt=str(payment.payment_id),
+                notes={
+                    'purpose': 'subscription_checkout',
+                    'user_id': str(request.user.id),
+                    'mess_id': str(mess.id),
+                    'plan_type': plan_type,
+                }
+            )
+            payment.razorpay_order_id = razorpay_order_id
+            payment.save()
+
+        return render(request, 'payments/payment_page.html', {
+            'payment': payment,
+            'gateway_order': {
+                'id': razorpay_order_id,
+                'amount': int(price * 100),
+                'currency': 'INR'
+            },
+            'razorpay_key_id': settings.RAZORPAY_KEY_ID,
+        })
         
     return redirect('mess_detail', mess_id=mess.id)
 
@@ -403,9 +452,16 @@ def checkout_cart(request):
             if total_bal < total_cost:
                 messages.error(request, "Insufficient wallet balance.")
                 return redirect('view_cart')
-                
+
             with transaction.atomic():
-                # Deduct
+                payment = create_payment_record(
+                    user=request.user,
+                    amount=total_cost,
+                    payment_method='wallet',
+                    gateway='wallet'
+                )
+
+                # Deduct wallet/cashback balance
                 remaining = total_cost
                 if profile.cashback_balance >= remaining:
                     profile.cashback_balance -= remaining
@@ -415,8 +471,8 @@ def checkout_cart(request):
                     profile.cashback_balance = 0
                     profile.wallet_balance -= remaining
                 profile.save()
-                
-                # Create Order
+
+                # Create the order only after wallet funds are confirmed
                 mess = cart.items.first().meal.mess
                 otp = f"{random.randint(100000, 999999)}"
                 order = Order.objects.create(
@@ -426,7 +482,7 @@ def checkout_cart(request):
                     status='pending',
                     delivery_otp=otp
                 )
-                
+
                 for item in cart.items.all():
                     OrderItem.objects.create(
                         order=order,
@@ -434,41 +490,48 @@ def checkout_cart(request):
                         quantity=item.quantity,
                         price=item.meal.price
                     )
-                    
-                # Clear Cart
+
                 cart.items.all().delete()
-                
-                # Transaction
+
                 WalletTransaction.objects.create(
                     user=request.user,
                     amount=total_cost,
                     transaction_type='debit',
                     description=f"Tiffin Order #{order.id} from {mess.mess_name}"
                 )
-                
-                # Success Payment
-                Payment.objects.create(
-                    order=order,
-                    user=request.user,
-                    razorpay_order_id=f"order_rp_mock_{order.id}",
-                    razorpay_payment_id=f"pay_rp_mock_{order.id}",
-                    amount=total_cost,
-                    status='success'
-                )
+
+                payment.order = order
+                mark_payment_success(payment)
 
             messages.success(request, f"Order #{order.id} placed successfully using Wallet!")
             return redirect('student_dashboard')
-            
+
         else:
-            # Online checkout: create pending payment and redirect to payment page
-            payment = Payment.objects.create(
+            # Online checkout: create pending payment and Razorpay order, then render checkout with Razorpay context
+            payment = create_payment_record(
                 user=request.user,
                 amount=total_cost,
                 payment_method='online',
-                payment_gateway='razorpay',
-                status='pending'
+                gateway='razorpay'
             )
-            return redirect('payment_page', payment_id=payment.payment_id)
+            razorpay_order_id = create_razorpay_order(
+                amount=total_cost,
+                receipt=str(payment.payment_id),
+                notes={
+                    'purpose': 'cart_checkout',
+                    'user_id': str(request.user.id),
+                }
+            )
+            payment.razorpay_order_id = razorpay_order_id
+            payment.save()
+
+            return render(request, 'student/checkout.html', {
+                'cart': cart,
+                'order_id': razorpay_order_id,
+                'amount': total_cost,
+                'payment_id': str(payment.payment_id),
+                'razorpay_key_id': settings.RAZORPAY_KEY_ID,
+            })
 
     return render(request, 'student/checkout.html', {'cart': cart})
 

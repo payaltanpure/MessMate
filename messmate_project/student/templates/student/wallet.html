@@ -16,7 +16,7 @@
                     <span class="small opacity-50">Cashback portion: Rs. {{ profile.cashback_balance }}</span>
                 </div>
                 
-                <form method="POST">
+                <form method="POST" id="wallet-recharge-form">
                     {% csrf_token %}
                     <div class="mb-3">
                         <label class="form-label small fw-bold">Amount to Deposit (Rs.)</label>
@@ -94,4 +94,58 @@
         </div>
     </div>
 </div>
+
+{% if razorpay_order_id and razorpay_key_id and payment_id and amount %}
+<script src="https://checkout.razorpay.com/v1/checkout.js"></script>
+<script>
+    document.addEventListener('DOMContentLoaded', function () {
+        const form = document.getElementById('wallet-recharge-form');
+        if (!form) return;
+
+        form.addEventListener('submit', function (event) {
+            event.preventDefault();
+
+            const options = {
+                key: '{{ razorpay_key_id }}',
+                amount: '{{ amount|floatformat:'0' }}' * 100,
+                currency: 'INR',
+                name: 'SMARTMESS AI',
+                description: 'Wallet Recharge',
+                order_id: '{{ razorpay_order_id }}',
+                handler: function (response) {
+                    const csrfToken = document.querySelector('input[name="csrfmiddlewaretoken"]')?.value || '';
+                fetch('{% url "verify_payment" %}', {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/x-www-form-urlencoded',
+                            'X-CSRFToken': csrfToken
+                        },
+                        body: new URLSearchParams({
+                            payment_id: '{{ payment_id }}',
+                            razorpay_order_id: response.razorpay_order_id,
+                            razorpay_payment_id: response.razorpay_payment_id,
+                            razorpay_signature: response.razorpay_signature
+                        })
+                    }).then(function (res) {
+                        return res.json();
+                    }).then(function (data) {
+                        if (data.status === 'success') {
+                            window.location.href = data.redirect_url;
+                        } else {
+                            alert('Payment failed. Please try again.');
+                        }
+                    }).catch(function () {
+                        alert('Payment verification error. Please try again.');
+                    });
+                },
+                theme: {
+                    color: '#0d6efd'
+                }
+            };
+            const rzp = new Razorpay(options);
+            rzp.open();
+        });
+    });
+</script>
+{% endif %}
 {% endblock %}

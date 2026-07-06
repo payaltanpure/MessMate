@@ -87,15 +87,30 @@
             {% if not current_sub %}
             <div class="card glass-card p-4 border-0">
                 <h2 class="h5 mb-4"><i class="bi bi-calendar-range gradient-text me-2"></i>Monthly Subscription Plans</h2>
+                <div class="mb-4">
+                    <label class="form-label fw-bold">Payment Method</label>
+                    <div class="d-flex gap-3 flex-wrap">
+                        <div class="form-check form-check-inline">
+                            <input class="form-check-input" type="radio" name="payment_method_choice" id="subWallet" value="wallet" checked>
+                            <label class="form-check-label" for="subWallet">Wallet</label>
+                        </div>
+                        <div class="form-check form-check-inline">
+                            <input class="form-check-input" type="radio" name="payment_method_choice" id="subOnline" value="online">
+                            <label class="form-check-label" for="subOnline">Online Payment</label>
+                        </div>
+                    </div>
+                    <p class="small text-muted mt-2">Choose Wallet or Online payment for your monthly subscription.</p>
+                </div>
                 <div class="row g-3 text-center">
                     <!-- Lunch Tier -->
                     <div class="col-md-4">
                         <div class="p-3 bg-body-tertiary border rounded-4">
                             <h3 class="h6 mb-2">Lunch Only</h3>
                             <h4 class="h5 fw-bold text-success mb-3">Rs. {{ mess.monthly_price_lunch }} <span class="small text-secondary fw-normal">/mo</span></h4>
-                            <form method="POST" action="{% url 'subscribe_plan' mess.id %}">
+                            <form method="POST" action="{% url 'subscribe_plan' mess.id %}" class="subscription-plan-form">
                                 {% csrf_token %}
                                 <input type="hidden" name="plan_type" value="lunch">
+                                <input type="hidden" name="payment_method" value="wallet">
                                 <button type="submit" class="btn btn-outline-success btn-sm w-100 rounded-pill">Subscribe</button>
                             </form>
                         </div>
@@ -128,6 +143,20 @@
             </div>
             {% endif %}
         </div>
+<script>
+    document.addEventListener('DOMContentLoaded', function () {
+        const planForms = document.querySelectorAll('.subscription-plan-form');
+        planForms.forEach(function(form) {
+            form.addEventListener('submit', function () {
+                const selected = document.querySelector('input[name="payment_method_choice"]:checked');
+                const hidden = form.querySelector('input[name="payment_method"]');
+                if (selected && hidden) {
+                    hidden.value = selected.value;
+                }
+            });
+        });
+    });
+</script>
 
         <!-- Reviews & Ratings Section -->
         <div class="col-lg-4">

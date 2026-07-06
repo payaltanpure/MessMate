@@ -54,4 +54,75 @@
         </div>
     </div>
 </div>
+
+{% if order_id and amount and razorpay_key_id %}
+<script src="https://checkout.razorpay.com/v1/checkout.js"></script>
+<script>
+    document.addEventListener('DOMContentLoaded', function () {
+        const form = document.querySelector('form');
+        if (!form) return;
+
+        const orderId = '{{ order_id }}';
+        const amountValue = Number('{{ amount|floatformat:"0" }}');
+        const razorpayKey = '{{ razorpay_key_id }}';
+        const csrfToken = document.querySelector('input[name="csrfmiddlewaretoken"]')?.value || '';
+        const onlineRadio = document.querySelector('input[name="payment_method"][value="online"]');
+
+        function isOnlineSelected() {
+            return onlineRadio && onlineRadio.checked;
+        }
+
+        form.addEventListener('submit', function (event) {
+            if (!isOnlineSelected()) {
+                return;
+            }
+            if (!orderId || !amountValue || !razorpayKey) {
+                return;
+            }
+            event.preventDefault();
+
+            const options = {
+                key: razorpayKey,
+                amount: amountValue * 100,
+                currency: 'INR',
+                order_id: orderId,
+                name: 'SMARTMESS AI',
+                description: 'Order Payment',
+                handler: function (response) {
+                    const payload = new URLSearchParams();
+                    payload.append('payment_id', '{{ payment_id }}');
+                    payload.append('razorpay_order_id', response.razorpay_order_id);
+                    payload.append('razorpay_payment_id', response.razorpay_payment_id);
+                    payload.append('razorpay_signature', response.razorpay_signature);
+
+                    fetch('{% url "verify_payment" %}', {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/x-www-form-urlencoded',
+                            'X-CSRFToken': csrfToken
+                        },
+                        body: payload
+                    }).then(function (res) {
+                        return res.json();
+                    }).then(function (data) {
+                        if (data.status === 'success' && data.redirect_url) {
+                            window.location.href = data.redirect_url;
+                        } else {
+                            alert('Payment verification failed. Please try again.');
+                        }
+                    }).catch(function () {
+                        alert('Payment verification error. Please try again.');
+                    });
+                },
+                theme: {
+                    color: '#0d6efd'
+                }
+            };
+
+            const rzp = new Razorpay(options);
+            rzp.open();
+        });
+    });
+</script>
+{% endif %}
 {% endblock %}
