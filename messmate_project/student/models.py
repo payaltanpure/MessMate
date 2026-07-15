@@ -120,6 +120,7 @@ class Payment(models.Model):
         ('pending', 'Pending'),
         ('success', 'Success'),
         ('failed', 'Failed'),
+        ('cancelled', 'Cancelled'),
         ('refunded', 'Refunded'),
     )
     # New unified payment model fields

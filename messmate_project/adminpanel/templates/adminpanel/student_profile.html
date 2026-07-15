@@ -1,0 +1,40 @@
+{% extends 'base.html' %}
+
+{% block title %}Student Profile - SMARTMESS AI{% endblock %}
+
+{% block content %}
+<div class="container py-4">
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <div>
+            <h1 class="h3 mb-1">Student Profile</h1>
+            <p class="text-muted mb-0">Detailed student account information.</p>
+        </div>
+        <a href="{% url 'adminpanel:manage_students' %}" class="btn btn-outline-secondary">Back to Students</a>
+    </div>
+
+    <div class="card glass-card border-0">
+        <div class="card-body">
+            <div class="row g-4">
+                <div class="col-md-6">
+                    <h5 class="mb-3">Account Details</h5>
+                    <p class="mb-2"><strong>Username:</strong> {{ student.username }}</p>
+                    <p class="mb-2"><strong>Name:</strong> {{ student.get_full_name|default:'-' }}</p>
+                    <p class="mb-2"><strong>Email:</strong> {{ student.email|default:'-' }}</p>
+                    <p class="mb-2"><strong>Phone:</strong> {{ student.phone|default:'-' }}</p>
+                    <p class="mb-2"><strong>Address:</strong> {{ student.address|default:'-' }}</p>
+                    <p class="mb-2"><strong>Status:</strong> {% if student.is_active %}<span class="badge bg-success-subtle text-success">Active</span>{% else %}<span class="badge bg-danger-subtle text-danger">Blocked</span>{% endif %}</p>
+                </div>
+                <div class="col-md-6">
+                    <h5 class="mb-3">Profile Details</h5>
+                    {% if profile %}
+                        <p class="mb-2"><strong>Wallet Balance:</strong> Rs. {{ profile.wallet_balance }}</p>
+                        <p class="mb-2"><strong>Cashback Balance:</strong> Rs. {{ profile.cashback_balance }}</p>
+                    {% else %}
+                        <p class="text-muted">No profile details available.</p>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

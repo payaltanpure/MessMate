@@ -1,0 +1,236 @@
+{% extends 'base.html' %}
+
+{% block title %}Admin Dashboard - SMARTMESS AI{% endblock %}
+
+{% block content %}
+<div class="container py-4">
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <div>
+            <h1 class="h3 mb-1">Admin Dashboard</h1>
+            <p class="text-muted mb-0">Operations overview for SMARTMESS AI</p>
+        </div>
+    </div>
+
+    <div class="row g-4 mb-4">
+        <div class="col-12">
+            <div class="card glass-card border-0">
+                <div class="card-body d-flex flex-wrap gap-2">
+                    <a href="{% url 'adminpanel:manage_students' %}" class="btn btn-outline-primary">Manage Students</a>
+                    <a href="{% url 'adminpanel:manage_vendors' %}" class="btn btn-outline-success">Manage Vendors</a>
+                    <a href="{% url 'adminpanel:manage_messes' %}" class="btn btn-outline-warning">Manage Messes</a>
+                    <a href="{% url 'adminpanel:manage_meals' %}" class="btn btn-outline-info">Manage Meals</a>
+                </div>
+            </div>
+        </div>
+        <div class="col-12 col-sm-6 col-lg-4">
+            <div class="card glass-card border-0 h-100">
+                <div class="card-body">
+                    <div class="d-flex justify-content-between align-items-center">
+                        <div>
+                            <h6 class="text-secondary mb-1">Total Students</h6>
+                            <h3 class="mb-0">{{ total_students }}</h3>
+                        </div>
+                        <i class="bi bi-people-fill fs-2 text-primary"></i>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <div class="col-12 col-sm-6 col-lg-4">
+            <div class="card glass-card border-0 h-100">
+                <div class="card-body">
+                    <div class="d-flex justify-content-between align-items-center">
+                        <div>
+                            <h6 class="text-secondary mb-1">Total Vendors</h6>
+                            <h3 class="mb-0">{{ total_vendors }}</h3>
+                        </div>
+                        <i class="bi bi-shop-window fs-2 text-success"></i>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <div class="col-12 col-sm-6 col-lg-4">
+            <div class="card glass-card border-0 h-100">
+                <div class="card-body">
+                    <div class="d-flex justify-content-between align-items-center">
+                        <div>
+                            <h6 class="text-secondary mb-1">Total Messes</h6>
+                            <h3 class="mb-0">{{ total_messes }}</h3>
+                        </div>
+                        <i class="bi bi-building fs-2 text-warning"></i>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <div class="col-12 col-sm-6 col-lg-4">
+            <div class="card glass-card border-0 h-100">
+                <div class="card-body">
+                    <div class="d-flex justify-content-between align-items-center">
+                        <div>
+                            <h6 class="text-secondary mb-1">Total Orders</h6>
+                            <h3 class="mb-0">{{ total_orders }}</h3>
+                        </div>
+                        <i class="bi bi-cart-check fs-2 text-info"></i>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <div class="col-12 col-sm-6 col-lg-4">
+            <div class="card glass-card border-0 h-100">
+                <div class="card-body">
+                    <div class="d-flex justify-content-between align-items-center">
+                        <div>
+                            <h6 class="text-secondary mb-1">Active Subscriptions</h6>
+                            <h3 class="mb-0">{{ active_subscriptions }}</h3>
+                        </div>
+                        <i class="bi bi-calendar2-check fs-2 text-danger"></i>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <div class="col-12 col-sm-6 col-lg-4">
+            <div class="card glass-card border-0 h-100">
+                <div class="card-body">
+                    <div class="d-flex justify-content-between align-items-center">
+                        <div>
+                            <h6 class="text-secondary mb-1">Total Complaints</h6>
+                            <h3 class="mb-0">{{ total_complaints }}</h3>
+                        </div>
+                        <i class="bi bi-exclamation-triangle fs-2 text-secondary"></i>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <div class="col-12 col-sm-6 col-lg-4">
+            <div class="card glass-card border-0 h-100">
+                <div class="card-body">
+                    <div class="d-flex justify-content-between align-items-center">
+                        <div>
+                            <h6 class="text-secondary mb-1">Revenue</h6>
+                            <h3 class="mb-0">Rs. {{ revenue }}</h3>
+                        </div>
+                        <i class="bi bi-currency-rupee fs-2 text-success"></i>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <div class="col-12 col-sm-6 col-lg-4">
+            <div class="card glass-card border-0 h-100">
+                <div class="card-body">
+                    <div class="d-flex justify-content-between align-items-center">
+                        <div>
+                            <h6 class="text-secondary mb-1">Today's Orders</h6>
+                            <h3 class="mb-0">{{ today_orders }}</h3>
+                        </div>
+                        <i class="bi bi-calendar-day fs-2 text-primary"></i>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="row g-4">
+        <div class="col-12 col-lg-6">
+            <div class="card glass-card border-0 h-100">
+                <div class="card-body">
+                    <h5 class="card-title mb-3">Latest 5 Orders</h5>
+                    {% if latest_orders %}
+                        <div class="list-group list-group-flush">
+                            {% for order in latest_orders %}
+                                <div class="list-group-item px-0">
+                                    <div class="d-flex justify-content-between">
+                                        <div>
+                                            <div class="fw-bold">#{{ order.id }} - {{ order.student.username }}</div>
+                                            <div class="small text-secondary">{{ order.mess.mess_name }}</div>
+                                        </div>
+                                        <div class="text-end">
+                                            <div class="fw-bold">Rs. {{ order.total_amount }}</div>
+                                            <div class="small text-secondary">{{ order.status }}</div>
+                                        </div>
+                                    </div>
+                                </div>
+                            {% endfor %}
+                        </div>
+                    {% else %}
+                        <p class="text-muted mb-0">No orders found.</p>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+
+        <div class="col-12 col-lg-6">
+            <div class="card glass-card border-0 h-100">
+                <div class="card-body">
+                    <h5 class="card-title mb-3">Latest 5 Students</h5>
+                    {% if latest_students %}
+                        <div class="list-group list-group-flush">
+                            {% for student in latest_students %}
+                                <div class="list-group-item px-0">
+                                    <div class="d-flex justify-content-between align-items-center">
+                                        <div>
+                                            <div class="fw-bold">{{ student.username }}</div>
+                                            <div class="small text-secondary">{{ student.email }}</div>
+                                        </div>
+                                        <span class="badge bg-primary-subtle text-primary">Student</span>
+                                    </div>
+                                </div>
+                            {% endfor %}
+                        </div>
+                    {% else %}
+                        <p class="text-muted mb-0">No students found.</p>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+
+        <div class="col-12 col-lg-6">
+            <div class="card glass-card border-0 h-100">
+                <div class="card-body">
+                    <h5 class="card-title mb-3">Latest 5 Vendors</h5>
+                    {% if latest_vendors %}
+                        <div class="list-group list-group-flush">
+                            {% for vendor in latest_vendors %}
+                                <div class="list-group-item px-0">
+                                    <div class="d-flex justify-content-between align-items-center">
+                                        <div>
+                                            <div class="fw-bold">{{ vendor.username }}</div>
+                                            <div class="small text-secondary">{{ vendor.email }}</div>
+                                        </div>
+                                        <span class="badge bg-success-subtle text-success">Vendor</span>
+                                    </div>
+                                </div>
+                            {% endfor %}
+                        </div>
+                    {% else %}
+                        <p class="text-muted mb-0">No vendors found.</p>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+
+        <div class="col-12 col-lg-6">
+            <div class="card glass-card border-0 h-100">
+                <div class="card-body">
+                    <h5 class="card-title mb-3">Latest 5 Complaints</h5>
+                    {% if latest_complaints %}
+                        <div class="list-group list-group-flush">
+                            {% for complaint in latest_complaints %}
+                                <div class="list-group-item px-0">
+                                    <div class="d-flex justify-content-between align-items-center">
+                                        <div>
+                                            <div class="fw-bold">{{ complaint.category|title }}</div>
+                                            <div class="small text-secondary">{{ complaint.student.username }} · {{ complaint.status }}</div>
+                                        </div>
+                                        <span class="badge bg-warning-subtle text-warning">{{ complaint.status }}</span>
+                                    </div>
+                                </div>
+                            {% endfor %}
+                        </div>
+                    {% else %}
+                        <p class="text-muted mb-0">No complaints found.</p>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

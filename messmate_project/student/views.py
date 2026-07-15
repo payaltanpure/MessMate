@@ -134,6 +134,7 @@ def wallet_detail(request):
             payment.razorpay_order_id = razorpay_order_id
             payment.save()
             request.session[f'wallet_payment_{payment.payment_id}'] = promo_code or ''
+            request.session[f'payment_purpose_{payment.payment_id}'] = 'wallet_recharge'
 
             return render(request, 'student/wallet.html', {
                 'profile': profile,
@@ -203,13 +204,17 @@ def subscribe_plan(request, mess_id):
             payment_method = 'wallet'
 
         if payment_method == 'wallet':
-            total_bal = profile.wallet_balance + profile.cashback_balance
+            wallet_bal = profile.wallet_balance or Decimal('0')
+            cashback_bal = profile.cashback_balance or Decimal('0')
+            total_bal = wallet_bal + cashback_bal
             if total_bal < price:
                 messages.error(request, f"Insufficient wallet balance. Plan costs Rs.{price}, you have Rs.{total_bal}.")
                 return redirect('wallet_detail')
 
             with transaction.atomic():
                 # Deduct from cashback first, then main wallet
+                profile.cashback_balance = profile.cashback_balance or Decimal('0')
+                profile.wallet_balance = profile.wallet_balance or Decimal('0')
                 remaining_price = price
                 if profile.cashback_balance >= price:
                     profile.cashback_balance -= price
@@ -266,26 +271,11 @@ def subscribe_plan(request, mess_id):
 
         # Online payment flow
         with transaction.atomic():
-            today = datetime.date.today()
-            end = today + datetime.timedelta(days=30)
-            sub = Subscription.objects.create(
-                student=request.user,
-                mess=mess,
-                plan_type=plan_type,
-                start_date=today,
-                end_date=end,
-                price_paid=price,
-                status='expired',
-                remaining_days=30,
-                pause_remaining_days=30
-            )
-
             payment = create_payment_record(
                 user=request.user,
                 amount=price,
                 payment_method='online',
-                gateway='razorpay',
-                subscription=sub
+                gateway='razorpay'
             )
 
             razorpay_order_id = create_razorpay_order(
@@ -300,6 +290,9 @@ def subscribe_plan(request, mess_id):
             )
             payment.razorpay_order_id = razorpay_order_id
             payment.save()
+            request.session[f'payment_purpose_{payment.payment_id}'] = 'subscription_checkout'
+            request.session[f'payment_mess_id_{payment.payment_id}'] = str(mess.id)
+            request.session[f'payment_plan_type_{payment.payment_id}'] = plan_type
 
         return render(request, 'payments/payment_page.html', {
             'payment': payment,
@@ -360,12 +353,12 @@ def cancel_subscription(request, sub_id):
             sub.save()
             
             # Heuristic Refund: 80% value of remaining days returned to wallet
-            rate_per_day = sub.price_paid / 30
-            refund_days = sub.pause_remaining_days if sub.pause_date else max(1, (sub.end_date - datetime.date.today()).days)
-            refund_amount = round(rate_per_day * refund_days * 0.8, 2)
+            rate_per_day = Decimal(sub.price_paid) / Decimal('30')
+            refund_days = Decimal(sub.pause_remaining_days if sub.pause_date else max(1, (sub.end_date - datetime.date.today()).days))
+            refund_amount = (rate_per_day * refund_days * Decimal('0.80')).quantize(Decimal('0.01'))
             
             profile, _ = StudentProfile.objects.get_or_create(user=request.user)
-            profile.wallet_balance = (profile.wallet_balance or Decimal('0')) + Decimal(str(refund_amount))
+            profile.wallet_balance = (profile.wallet_balance or Decimal('0')) + refund_amount
             profile.save()
             
             WalletTransaction.objects.create(
@@ -448,7 +441,9 @@ def checkout_cart(request):
         payment_method = request.POST.get('payment_method') # wallet or online
         
         if payment_method == 'wallet':
-            total_bal = profile.wallet_balance + profile.cashback_balance
+            wallet_bal = profile.wallet_balance or Decimal('0')
+            cashback_bal = profile.cashback_balance or Decimal('0')
+            total_bal = wallet_bal + cashback_bal
             if total_bal < total_cost:
                 messages.error(request, "Insufficient wallet balance.")
                 return redirect('view_cart')
@@ -462,6 +457,8 @@ def checkout_cart(request):
                 )
 
                 # Deduct wallet/cashback balance
+                profile.cashback_balance = profile.cashback_balance or Decimal('0')
+                profile.wallet_balance = profile.wallet_balance or Decimal('0')
                 remaining = total_cost
                 if profile.cashback_balance >= remaining:
                     profile.cashback_balance -= remaining
@@ -524,6 +521,7 @@ def checkout_cart(request):
             )
             payment.razorpay_order_id = razorpay_order_id
             payment.save()
+            request.session[f'payment_purpose_{payment.payment_id}'] = 'cart_checkout'
 
             return render(request, 'student/checkout.html', {
                 'cart': cart,

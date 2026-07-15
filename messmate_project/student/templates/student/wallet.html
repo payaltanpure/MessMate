@@ -30,6 +30,11 @@
                     
                     <button type="submit" class="btn btn-gradient w-100 rounded-pill py-2">Add Money (Online Simulation)</button>
                 </form>
+                {% if razorpay_order_id and payment_id and amount %}
+                    <input type="hidden" id="razorpay-order-id" value="{{ razorpay_order_id }}">
+                    <input type="hidden" id="razorpay-payment-id" value="{{ payment_id }}">
+                    <input type="hidden" id="wallet-amount" value='{{ amount|floatformat:"2" }}'>
+                {% endif %}
             </div>
             
             <div class="card glass-card p-4 border-0">
@@ -95,55 +100,60 @@
     </div>
 </div>
 
-{% if razorpay_order_id and razorpay_key_id and payment_id and amount %}
-<script src="https://checkout.razorpay.com/v1/checkout.js"></script>
+{% if razorpay_order_id and payment_id and amount %}
 <script>
     document.addEventListener('DOMContentLoaded', function () {
         const form = document.getElementById('wallet-recharge-form');
         if (!form) return;
+        const submitButton = form.querySelector('button[type="submit"]');
+        const paymentId = document.getElementById('razorpay-payment-id')?.value;
+        const amountValue = Number(document.getElementById('wallet-amount')?.value || 0);
+        let isProcessing = false;
 
         form.addEventListener('submit', function (event) {
             event.preventDefault();
+            if (isProcessing || !paymentId || !amountValue) {
+                return;
+            }
+            isProcessing = true;
+            if (submitButton) {
+                submitButton.disabled = true;
+                submitButton.innerHTML = 'Completing Payment...';
+            }
 
-            const options = {
-                key: '{{ razorpay_key_id }}',
-                amount: '{{ amount|floatformat:'0' }}' * 100,
-                currency: 'INR',
-                name: 'SMARTMESS AI',
-                description: 'Wallet Recharge',
-                order_id: '{{ razorpay_order_id }}',
-                handler: function (response) {
-                    const csrfToken = document.querySelector('input[name="csrfmiddlewaretoken"]')?.value || '';
-                fetch('{% url "verify_payment" %}', {
-                        method: 'POST',
-                        headers: {
-                            'Content-Type': 'application/x-www-form-urlencoded',
-                            'X-CSRFToken': csrfToken
-                        },
-                        body: new URLSearchParams({
-                            payment_id: '{{ payment_id }}',
-                            razorpay_order_id: response.razorpay_order_id,
-                            razorpay_payment_id: response.razorpay_payment_id,
-                            razorpay_signature: response.razorpay_signature
-                        })
-                    }).then(function (res) {
-                        return res.json();
-                    }).then(function (data) {
-                        if (data.status === 'success') {
-                            window.location.href = data.redirect_url;
-                        } else {
-                            alert('Payment failed. Please try again.');
-                        }
-                    }).catch(function () {
-                        alert('Payment verification error. Please try again.');
-                    });
+            const csrfToken = document.querySelector('input[name="csrfmiddlewaretoken"]')?.value || '';
+            fetch('{% url "verify_payment" %}', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/x-www-form-urlencoded',
+                    'X-CSRFToken': csrfToken
                 },
-                theme: {
-                    color: '#0d6efd'
+                body: new URLSearchParams({
+                    payment_id: paymentId,
+                    razorpay_order_id: 'simulated-order-' + paymentId,
+                    razorpay_payment_id: 'simulated-payment-' + paymentId,
+                    razorpay_signature: 'simulated-signature',
+                    simulate_payment: 'true'
+                })
+            }).then(function (res) {
+                return res.json();
+            }).then(function (data) {
+                if (data.status === 'success' && data.redirect_url) {
+                    window.location.href = data.redirect_url;
+                    return;
                 }
-            };
-            const rzp = new Razorpay(options);
-            rzp.open();
+                if (submitButton) {
+                    submitButton.disabled = false;
+                    submitButton.innerHTML = 'Add Money (Online Simulation)';
+                }
+                alert(data.error || 'Payment failed. Please try again.');
+            }).catch(function () {
+                if (submitButton) {
+                    submitButton.disabled = false;
+                    submitButton.innerHTML = 'Add Money (Online Simulation)';
+                }
+                alert('Payment verification error. Please try again.');
+            });
         });
     });
 </script>

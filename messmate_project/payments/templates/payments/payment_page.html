@@ -26,6 +26,12 @@
                             </li>
                             {% endfor %}
                         </ul>
+                    {% elif payment.payment_method == 'online' and gateway_order %}
+                        <div class="p-3 bg-white rounded-3 border mb-3">
+                            <h5 class="mb-2">Subscription Payment</h5>
+                            <p class="mb-1"><strong>Amount:</strong> Rs. {{ payment.amount }}</p>
+                            <p class="mb-0"><strong>Payment Gateway:</strong> {{ payment.payment_gateway|title }}</p>
+                        </div>
                     {% else %}
                         <div class="alert alert-warning">No cart items found for payment. Please add items and try again.</div>
                     {% endif %}
@@ -59,51 +65,49 @@
 </div>
 
 {% if gateway_order and razorpay_key_id %}
-<script src="https://checkout.razorpay.com/v1/checkout.js"></script>
 <script>
-    const options = {
-        key: '{{ razorpay_key_id }}',
-        amount: '{{ gateway_order.amount }}',
-        currency: '{{ gateway_order.currency }}',
-        name: 'SMARTMESS AI',
-        description: 'Subscription Payment',
-        order_id: '{{ gateway_order.id }}',
-        handler: function (response) {
+    const paymentId = '{{ payment.payment_id }}';
+    const csrfToken = document.querySelector('input[name="csrfmiddlewaretoken"]')?.value || '';
+
+    document.addEventListener('DOMContentLoaded', function () {
+        const payButton = document.getElementById('razorpay-button');
+        if (!payButton) {
+            return;
+        }
+
+        payButton.addEventListener('click', function (e) {
+            e.preventDefault();
+            payButton.disabled = true;
+            payButton.innerHTML = 'Completing Payment...';
+
             fetch('{% url "verify_payment" %}', {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/x-www-form-urlencoded',
-                    'X-CSRFToken': '{{ csrf_token }}'
+                    'X-CSRFToken': csrfToken
                 },
                 body: new URLSearchParams({
-                    payment_id: '{{ payment.payment_id }}',
-                    razorpay_order_id: response.razorpay_order_id,
-                    razorpay_payment_id: response.razorpay_payment_id,
-                    razorpay_signature: response.razorpay_signature
+                    payment_id: paymentId,
+                    razorpay_order_id: 'simulated-order-' + paymentId,
+                    razorpay_payment_id: 'simulated-payment-' + paymentId,
+                    razorpay_signature: 'simulated-signature',
+                    simulate_payment: 'true'
                 })
             }).then(res => res.json()).then(data => {
-                if (data.status === 'success') {
+                if (data.status === 'success' && data.redirect_url) {
                     window.location.href = data.redirect_url;
                 } else {
-                    alert('Payment verification failed. Please try again.');
-                    window.location.href = '{% url "payment_failed" payment.payment_id %}';
+                    payButton.disabled = false;
+                    payButton.innerHTML = 'Pay Now';
+                    alert(data.error || 'Payment verification failed. Please try again.');
                 }
+            }).catch(() => {
+                payButton.disabled = false;
+                payButton.innerHTML = 'Pay Now';
+                alert('Payment verification error. Please try again.');
             });
-        },
-        theme: {
-            color: '#0d6efd'
-        }
-    };
-
-    document.getElementById('razorpay-button').addEventListener('click', function(e){
-        e.preventDefault();
-        const rzp = new Razorpay(options);
-        rzp.open();
+        });
     });
 </script>
 {% endif %}
-            </div>
-        </div>
-    </div>
-</div>
 {% endblock %}

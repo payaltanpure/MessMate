@@ -1,0 +1,55 @@
+{% extends 'base.html' %}
+
+{% block title %}Vendor Profile - SMARTMESS AI{% endblock %}
+
+{% block content %}
+<div class="container py-4">
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <div>
+            <h1 class="h3 mb-1">Vendor Profile</h1>
+            <p class="text-muted mb-0">Detailed vendor account and business information.</p>
+        </div>
+        <a href="{% url 'adminpanel:manage_vendors' %}" class="btn btn-outline-secondary">Back to Vendors</a>
+    </div>
+
+    <div class="card glass-card border-0">
+        <div class="card-body">
+            <div class="row g-4">
+                <div class="col-md-6">
+                    <h5 class="mb-3">Account Details</h5>
+                    <p class="mb-2"><strong>Username:</strong> {{ vendor.username }}</p>
+                    <p class="mb-2"><strong>Name:</strong> {{ vendor.get_full_name|default:'-' }}</p>
+                    <p class="mb-2"><strong>Email:</strong> {{ vendor.email|default:'-' }}</p>
+                    <p class="mb-2"><strong>Phone:</strong> {{ vendor.phone|default:'-' }}</p>
+                    <p class="mb-2"><strong>Address:</strong> {{ vendor.address|default:'-' }}</p>
+                    <p class="mb-2"><strong>Status:</strong> {% if vendor.is_active %}<span class="badge bg-success-subtle text-success">Active</span>{% else %}<span class="badge bg-danger-subtle text-danger">Blocked</span>{% endif %}</p>
+                </div>
+                <div class="col-md-6">
+                    <h5 class="mb-3">Business Details</h5>
+                    {% if profile %}
+                        <p class="mb-2"><strong>Business Name:</strong> {{ profile.business_name }}</p>
+                        <p class="mb-2"><strong>Address:</strong> {{ profile.business_address }}</p>
+                        <p class="mb-2"><strong>Contact:</strong> {{ profile.contact_number }}</p>
+                        <p class="mb-2"><strong>Verification:</strong> {{ profile.get_verification_status_display }}</p>
+                        <p class="mb-2"><strong>GST:</strong> {{ profile.gst_number|default:'-' }}</p>
+                        <p class="mb-2"><strong>FSSAI:</strong> {{ profile.fssai_license|default:'-' }}</p>
+                    {% else %}
+                        <p class="text-muted">No profile details available.</p>
+                    {% endif %}
+                </div>
+            </div>
+
+            {% if messes %}
+            <div class="mt-4">
+                <h5 class="mb-3">Messes</h5>
+                <ul class="list-group">
+                    {% for mess in messes %}
+                        <li class="list-group-item">{{ mess.mess_name }} - {{ mess.address }}</li>
+                    {% endfor %}
+                </ul>
+            </div>
+            {% endif %}
+        </div>
+    </div>
+</div>
+{% endblock %}

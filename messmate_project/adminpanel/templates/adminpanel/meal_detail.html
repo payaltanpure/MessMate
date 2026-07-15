@@ -1,0 +1,76 @@
+{% extends 'base.html' %}
+
+{% block title %}Meal Details - SMARTMESS AI{% endblock %}
+
+{% block content %}
+<div class="container py-4">
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <div>
+            <h1 class="h3 mb-1">Meal Details</h1>
+            <p class="text-muted mb-0">Review meal configuration.</p>
+        </div>
+        <div class="d-flex gap-2">
+            <a href="{% url 'adminpanel:manage_meals' %}" class="btn btn-outline-secondary">Back to Meals</a>
+            <a href="{% url 'adminpanel:edit_meal' meal.id %}" class="btn btn-outline-primary">Edit Meal</a>
+        </div>
+    </div>
+
+    <div class="card glass-card border-0">
+        <div class="card-body">
+            <div class="row g-4">
+                <div class="col-lg-4">
+                    {% if meal.image %}
+                        <img src="{{ meal.image.url }}" alt="{{ meal.name }}" class="img-fluid rounded">
+                    {% else %}
+                        <div class="border rounded p-4 text-center text-muted">No image available</div>
+                    {% endif %}
+                </div>
+                <div class="col-lg-8">
+                    <h2 class="h4 mb-3">{{ meal.name }}</h2>
+                    <p class="text-muted mb-3">{{ meal.menu_items }}</p>
+                    <div class="row g-3">
+                        <div class="col-md-6">
+                            <div class="fw-semibold">Mess</div>
+                            <div>{{ meal.mess.mess_name }}</div>
+                        </div>
+                        <div class="col-md-6">
+                            <div class="fw-semibold">Vendor</div>
+                            <div>{{ meal.mess.vendor.get_full_name|default:meal.mess.vendor.username }}</div>
+                        </div>
+                        <div class="col-md-6">
+                            <div class="fw-semibold">Meal Type</div>
+                            <div>{{ meal.get_meal_type_display }}</div>
+                        </div>
+                        <div class="col-md-6">
+                            <div class="fw-semibold">Price</div>
+                            <div>Rs. {{ meal.price }}</div>
+                        </div>
+                        <div class="col-md-6">
+                            <div class="fw-semibold">Availability</div>
+                            <div>
+                                {% if meal.is_available %}
+                                    <span class="badge bg-success-subtle text-success">Available</span>
+                                {% else %}
+                                    <span class="badge bg-danger-subtle text-danger">Unavailable</span>
+                                {% endif %}
+                            </div>
+                        </div>
+                    </div>
+                    <div class="mt-4 d-flex gap-2 flex-wrap">
+                        <form method="post" action="{% url 'adminpanel:toggle_meal_status' meal.id %}" class="d-inline">
+                            {% csrf_token %}
+                            <button type="submit" class="btn {% if meal.is_available %}btn-outline-danger{% else %}btn-outline-success{% endif %}">
+                                {% if meal.is_available %}Disable Meal{% else %}Enable Meal{% endif %}
+                            </button>
+                        </form>
+                        <form method="post" action="{% url 'adminpanel:delete_meal' meal.id %}" class="d-inline" onsubmit="return confirm('Delete this meal?');">
+                            {% csrf_token %}
+                            <button type="submit" class="btn btn-outline-danger">Delete Meal</button>
+                        </form>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

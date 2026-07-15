@@ -1,0 +1,114 @@
+{% extends 'base.html' %}
+
+{% block title %}Manage Messes - SMARTMESS AI{% endblock %}
+
+{% block content %}
+<div class="container py-4">
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <div>
+            <h1 class="h3 mb-1">Manage Messes</h1>
+            <p class="text-muted mb-0">Search, review, and manage messes.</p>
+        </div>
+        <a href="{% url 'adminpanel:admin_dashboard' %}" class="btn btn-outline-secondary">Back to Dashboard</a>
+    </div>
+
+    <div class="card glass-card border-0 mb-4">
+        <div class="card-body">
+            <form method="get" class="row g-3 align-items-end">
+                <div class="col-md-6">
+                    <label class="form-label">Search by mess name, vendor, or location</label>
+                    <input type="text" name="q" class="form-control" value="{{ query }}" placeholder="Enter keyword">
+                </div>
+                <div class="col-md-4">
+                    <label class="form-label">Filter status</label>
+                    <select name="status" class="form-select">
+                        <option value="" {% if not status %}selected{% endif %}>All</option>
+                        <option value="active" {% if status == 'active' %}selected{% endif %}>Active</option>
+                        <option value="inactive" {% if status == 'inactive' %}selected{% endif %}>Inactive</option>
+                    </select>
+                </div>
+                <div class="col-md-2">
+                    <button type="submit" class="btn btn-gradient w-100">Filter</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <div class="card glass-card border-0">
+        <div class="table-responsive">
+            <table class="table table-hover align-middle mb-0">
+                <thead>
+                    <tr>
+                        <th>Mess</th>
+                        <th>Vendor</th>
+                        <th>Location</th>
+                        <th>Meals</th>
+                        <th>Subscriptions</th>
+                        <th>Rating</th>
+                        <th>Status</th>
+                        <th>Actions</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for mess in page_obj %}
+                    <tr>
+                        <td>
+                            <div class="fw-bold">{{ mess.mess_name }}</div>
+                            <div class="small text-secondary">{{ mess.diet_type|title }}</div>
+                        </td>
+                        <td>{{ mess.vendor.get_full_name|default:mess.vendor.username }}</td>
+                        <td>{{ mess.location_name }}</td>
+                        <td>{{ mess.meals.count }}</td>
+                        <td>{{ mess.subscriptions.count }}</td>
+                        <td>{{ mess.average_rating }}</td>
+                        <td>
+                            {% if mess.is_active %}
+                                <span class="badge bg-success-subtle text-success">Active</span>
+                            {% else %}
+                                <span class="badge bg-danger-subtle text-danger">Inactive</span>
+                            {% endif %}
+                        </td>
+                        <td>
+                            <div class="d-flex gap-2 flex-wrap">
+                                <a href="{% url 'adminpanel:mess_detail' mess.id %}" class="btn btn-sm btn-outline-primary">View</a>
+                                <a href="{% url 'adminpanel:edit_mess' mess.id %}" class="btn btn-sm btn-outline-secondary">Edit</a>
+                                <form method="post" action="{% url 'adminpanel:toggle_mess_status' mess.id %}" class="d-inline">
+                                    {% csrf_token %}
+                                    <button type="submit" class="btn btn-sm {% if mess.is_active %}btn-outline-danger{% else %}btn-outline-success{% endif %}">
+                                        {% if mess.is_active %}Deactivate{% else %}Activate{% endif %}
+                                    </button>
+                                </form>
+                            </div>
+                        </td>
+                    </tr>
+                    {% empty %}
+                    <tr>
+                        <td colspan="8" class="text-center text-muted py-4">No messes found.</td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+
+    {% if page_obj.paginator.num_pages > 1 %}
+    <nav class="mt-4">
+        <ul class="pagination justify-content-center">
+            {% if page_obj.has_previous %}
+                <li class="page-item"><a class="page-link" href="?page={{ page_obj.previous_page_number }}{% if query %}&q={{ query }}{% endif %}{% if status %}&status={{ status }}{% endif %}">Previous</a></li>
+            {% endif %}
+            {% for num in page_obj.paginator.page_range %}
+                {% if page_obj.number == num %}
+                    <li class="page-item active"><span class="page-link">{{ num }}</span></li>
+                {% else %}
+                    <li class="page-item"><a class="page-link" href="?page={{ num }}{% if query %}&q={{ query }}{% endif %}{% if status %}&status={{ status }}{% endif %}">{{ num }}</a></li>
+                {% endif %}
+            {% endfor %}
+            {% if page_obj.has_next %}
+                <li class="page-item"><a class="page-link" href="?page={{ page_obj.next_page_number }}{% if query %}&q={{ query }}{% endif %}{% if status %}&status={{ status }}{% endif %}">Next</a></li>
+            {% endif %}
+        </ul>
+    </nav>
+    {% endif %}
+</div>
+{% endblock %}

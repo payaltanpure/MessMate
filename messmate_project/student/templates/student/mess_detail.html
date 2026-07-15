@@ -120,9 +120,10 @@
                         <div class="p-3 bg-body-tertiary border rounded-4">
                             <h3 class="h6 mb-2">Dinner Only</h3>
                             <h4 class="h5 fw-bold text-success mb-3">Rs. {{ mess.monthly_price_dinner }} <span class="small text-secondary fw-normal">/mo</span></h4>
-                            <form method="POST" action="{% url 'subscribe_plan' mess.id %}">
+                            <form method="POST" action="{% url 'subscribe_plan' mess.id %}" class="subscription-plan-form">
                                 {% csrf_token %}
                                 <input type="hidden" name="plan_type" value="dinner">
+                                <input type="hidden" name="payment_method" value="wallet">
                                 <button type="submit" class="btn btn-outline-success btn-sm w-100 rounded-pill">Subscribe</button>
                             </form>
                         </div>
@@ -132,9 +133,10 @@
                         <div class="p-3 bg-body-tertiary border rounded-4 border-primary">
                             <h3 class="h6 mb-2 text-primary">Lunch + Dinner</h3>
                             <h4 class="h5 fw-bold text-primary mb-3">Rs. {{ mess.monthly_price_both }} <span class="small text-secondary fw-normal">/mo</span></h4>
-                            <form method="POST" action="{% url 'subscribe_plan' mess.id %}">
+                            <form method="POST" action="{% url 'subscribe_plan' mess.id %}" class="subscription-plan-form">
                                 {% csrf_token %}
                                 <input type="hidden" name="plan_type" value="both">
+                                <input type="hidden" name="payment_method" value="wallet">
                                 <button type="submit" class="btn btn-gradient btn-sm w-100 rounded-pill">Subscribe</button>
                             </form>
                         </div>

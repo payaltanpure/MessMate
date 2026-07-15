@@ -1,0 +1,75 @@
+{% extends 'base.html' %}
+
+{% block title %}Mess Details - SMARTMESS AI{% endblock %}
+
+{% block content %}
+<div class="container py-4">
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <div>
+            <h1 class="h3 mb-1">{{ mess.mess_name }}</h1>
+            <p class="text-muted mb-0">Mess information and meal offerings.</p>
+        </div>
+        <div class="d-flex gap-2">
+            <a href="{% url 'adminpanel:edit_mess' mess.id %}" class="btn btn-outline-secondary">Edit</a>
+            <a href="{% url 'adminpanel:manage_messes' %}" class="btn btn-outline-primary">Back to Messes</a>
+        </div>
+    </div>
+
+    <div class="card glass-card border-0 mb-4">
+        <div class="card-body">
+            <div class="row g-4">
+                <div class="col-md-6">
+                    <h5 class="mb-3">Mess Details</h5>
+                    <p class="mb-2"><strong>Vendor:</strong> {{ mess.vendor.get_full_name|default:mess.vendor.username }}</p>
+                    <p class="mb-2"><strong>Location:</strong> {{ mess.location_name }}</p>
+                    <p class="mb-2"><strong>Address:</strong> {{ mess.address }}</p>
+                    <p class="mb-2"><strong>Contact:</strong> {{ mess.contact_number }}</p>
+                    <p class="mb-2"><strong>Diet Type:</strong> {{ mess.get_diet_type_display }}</p>
+                    <p class="mb-2"><strong>Rating:</strong> {{ mess.average_rating }}</p>
+                    <p class="mb-2"><strong>Active Subscriptions:</strong> {{ active_subscriptions }}</p>
+                    <p class="mb-2"><strong>Status:</strong> {% if mess.is_active %}<span class="badge bg-success-subtle text-success">Active</span>{% else %}<span class="badge bg-danger-subtle text-danger">Inactive</span>{% endif %}</p>
+                </div>
+                <div class="col-md-6">
+                    <h5 class="mb-3">Pricing</h5>
+                    <p class="mb-2"><strong>Lunch:</strong> Rs. {{ mess.monthly_price_lunch }}</p>
+                    <p class="mb-2"><strong>Dinner:</strong> Rs. {{ mess.monthly_price_dinner }}</p>
+                    <p class="mb-2"><strong>Both:</strong> Rs. {{ mess.monthly_price_both }}</p>
+                    <p class="mb-2"><strong>Daily Tiffin:</strong> Rs. {{ mess.daily_tiffin_price }}</p>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="card glass-card border-0">
+        <div class="card-body">
+            <h5 class="mb-3">Meals</h5>
+            {% if meals %}
+                <div class="table-responsive">
+                    <table class="table table-sm align-middle mb-0">
+                        <thead>
+                            <tr>
+                                <th>Name</th>
+                                <th>Type</th>
+                                <th>Price</th>
+                                <th>Status</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for meal in meals %}
+                            <tr>
+                                <td>{{ meal.name }}</td>
+                                <td>{{ meal.get_meal_type_display }}</td>
+                                <td>Rs. {{ meal.price }}</td>
+                                <td>{% if meal.is_available %}<span class="badge bg-success-subtle text-success">Available</span>{% else %}<span class="badge bg-danger-subtle text-danger">Unavailable</span>{% endif %}</td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+            {% else %}
+                <p class="text-muted mb-0">No meals found for this mess.</p>
+            {% endif %}
+        </div>
+    </div>
+</div>
+{% endblock %}

@@ -1,0 +1,139 @@
+{% extends 'base.html' %}
+
+{% block title %}Manage Meals - SMARTMESS AI{% endblock %}
+
+{% block content %}
+<div class="container py-4">
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <div>
+            <h1 class="h3 mb-1">Manage Meals</h1>
+            <p class="text-muted mb-0">Search, filter, and manage meals.</p>
+        </div>
+        <a href="{% url 'adminpanel:admin_dashboard' %}" class="btn btn-outline-secondary">Back to Dashboard</a>
+    </div>
+
+    <div class="card glass-card border-0 mb-4">
+        <div class="card-body">
+            <form method="get" class="row g-3 align-items-end">
+                <div class="col-md-3">
+                    <label class="form-label">Search by meal name</label>
+                    <input type="text" name="q" class="form-control" value="{{ query }}" placeholder="Enter keyword">
+                </div>
+                <div class="col-md-2">
+                    <label class="form-label">Meal type</label>
+                    <select name="meal_type" class="form-select">
+                        <option value="" {% if not meal_type %}selected{% endif %}>All</option>
+                        <option value="breakfast" {% if meal_type == 'breakfast' %}selected{% endif %}>Breakfast</option>
+                        <option value="lunch" {% if meal_type == 'lunch' %}selected{% endif %}>Lunch</option>
+                        <option value="dinner" {% if meal_type == 'dinner' %}selected{% endif %}>Dinner</option>
+                    </select>
+                </div>
+                <div class="col-md-2">
+                    <label class="form-label">Vendor</label>
+                    <select name="vendor" class="form-select">
+                        <option value="" {% if not vendor_id %}selected{% endif %}>All</option>
+                        {% for vendor in vendors %}
+                            <option value="{{ vendor.id }}" {% if vendor_id == vendor.id|stringformat:'s' %}selected{% endif %}>{{ vendor.username }}</option>
+                        {% endfor %}
+                    </select>
+                </div>
+                <div class="col-md-2">
+                    <label class="form-label">Mess</label>
+                    <select name="mess" class="form-select">
+                        <option value="" {% if not mess_id %}selected{% endif %}>All</option>
+                        {% for mess in messes %}
+                            <option value="{{ mess.id }}" {% if mess_id == mess.id|stringformat:'s' %}selected{% endif %}>{{ mess.mess_name }}</option>
+                        {% endfor %}
+                    </select>
+                </div>
+                <div class="col-md-2">
+                    <label class="form-label">Availability</label>
+                    <select name="availability" class="form-select">
+                        <option value="" {% if not availability %}selected{% endif %}>All</option>
+                        <option value="available" {% if availability == 'available' %}selected{% endif %}>Available</option>
+                        <option value="unavailable" {% if availability == 'unavailable' %}selected{% endif %}>Unavailable</option>
+                    </select>
+                </div>
+                <div class="col-md-1">
+                    <button type="submit" class="btn btn-gradient w-100">Filter</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <div class="card glass-card border-0">
+        <div class="table-responsive">
+            <table class="table table-hover align-middle mb-0">
+                <thead>
+                    <tr>
+                        <th>Meal</th>
+                        <th>Mess</th>
+                        <th>Vendor</th>
+                        <th>Type</th>
+                        <th>Price</th>
+                        <th>Status</th>
+                        <th>Actions</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for meal in page_obj %}
+                    <tr>
+                        <td>
+                            <div class="fw-bold">{{ meal.name }}</div>
+                            <div class="small text-secondary">{{ meal.menu_items }}</div>
+                        </td>
+                        <td>{{ meal.mess.mess_name }}</td>
+                        <td>{{ meal.mess.vendor.get_full_name|default:meal.mess.vendor.username }}</td>
+                        <td>{{ meal.get_meal_type_display }}</td>
+                        <td>Rs. {{ meal.price }}</td>
+                        <td>
+                            {% if meal.is_available %}
+                                <span class="badge bg-success-subtle text-success">Available</span>
+                            {% else %}
+                                <span class="badge bg-danger-subtle text-danger">Unavailable</span>
+                            {% endif %}
+                        </td>
+                        <td>
+                            <div class="d-flex gap-2 flex-wrap">
+                                <a href="{% url 'adminpanel:meal_detail' meal.id %}" class="btn btn-sm btn-outline-primary">View</a>
+                                <a href="{% url 'adminpanel:edit_meal' meal.id %}" class="btn btn-sm btn-outline-secondary">Edit</a>
+                                <form method="post" action="{% url 'adminpanel:toggle_meal_status' meal.id %}" class="d-inline">
+                                    {% csrf_token %}
+                                    <button type="submit" class="btn btn-sm {% if meal.is_available %}btn-outline-danger{% else %}btn-outline-success{% endif %}">
+                                        {% if meal.is_available %}Disable{% else %}Enable{% endif %}
+                                    </button>
+                                </form>
+                            </div>
+                        </td>
+                    </tr>
+                    {% empty %}
+                    <tr>
+                        <td colspan="7" class="text-center text-muted py-4">No meals found.</td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+
+    {% if page_obj.paginator.num_pages > 1 %}
+    <nav class="mt-4">
+        <ul class="pagination justify-content-center">
+            {% if page_obj.has_previous %}
+                <li class="page-item"><a class="page-link" href="?page={{ page_obj.previous_page_number }}{% if query %}&q={{ query }}{% endif %}{% if meal_type %}&meal_type={{ meal_type }}{% endif %}{% if vendor_id %}&vendor={{ vendor_id }}{% endif %}{% if mess_id %}&mess={{ mess_id }}{% endif %}{% if availability %}&availability={{ availability }}{% endif %}">Previous</a></li>
+            {% endif %}
+            {% for num in page_obj.paginator.page_range %}
+                {% if page_obj.number == num %}
+                    <li class="page-item active"><span class="page-link">{{ num }}</span></li>
+                {% else %}
+                    <li class="page-item"><a class="page-link" href="?page={{ num }}{% if query %}&q={{ query }}{% endif %}{% if meal_type %}&meal_type={{ meal_type }}{% endif %}{% if vendor_id %}&vendor={{ vendor_id }}{% endif %}{% if mess_id %}&mess={{ mess_id }}{% endif %}{% if availability %}&availability={{ availability }}{% endif %}">{{ num }}</a></li>
+                {% endif %}
+            {% endfor %}
+            {% if page_obj.has_next %}
+                <li class="page-item"><a class="page-link" href="?page={{ page_obj.next_page_number }}{% if query %}&q={{ query }}{% endif %}{% if meal_type %}&meal_type={{ meal_type }}{% endif %}{% if vendor_id %}&vendor={{ vendor_id }}{% endif %}{% if mess_id %}&mess={{ mess_id }}{% endif %}{% if availability %}&availability={{ availability }}{% endif %}">Next</a></li>
+            {% endif %}
+        </ul>
+    </nav>
+    {% endif %}
+</div>
+{% endblock %}

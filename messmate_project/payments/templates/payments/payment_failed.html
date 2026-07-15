@@ -10,6 +10,9 @@
                 <h1 class="display-6 text-danger">Payment Failed</h1>
                 <p class="lead">Your payment could not be completed.</p>
                 <p>Payment ID: {{ payment.payment_id }}</p>
+                {% if payment.gateway_transaction_id %}
+                    <p class="small text-secondary">Reason: {{ payment.gateway_transaction_id }}</p>
+                {% endif %}
                 <a href="{% url 'view_cart' %}" class="btn btn-outline-secondary mt-3">Return to Cart</a>
             </div>
         </div>

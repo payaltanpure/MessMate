@@ -18,6 +18,7 @@ from django.contrib import admin
 from django.urls import path, include
 from django.conf import settings
 from django.conf.urls.static import static
+from adminpanel.views import admin_dashboard
 
 urlpatterns = [
     path('admin/', admin.site.urls),
@@ -28,6 +29,8 @@ urlpatterns = [
     path('student/', include('student.urls')),
     path('vendor/', include('vendor.urls')),
     path('payments/', include('payments.urls')),  # Include payments app URLs
+    path('admin-dashboard/', admin_dashboard, name='admin_dashboard'),
+    path('adminpanel/', include('adminpanel.urls')),
     
     # REST APIs & Swagger Doc paths
     path('api/', include('core.api.urls')),
