@@ -15,6 +15,9 @@ from razorpay.errors import SignatureVerificationError
 from core.decorators import student_required, vendor_required
 from accounts.models import StudentProfile
 from student.models import Payment, WalletTransaction, Order, OrderItem, Cart, Subscription, Notification
+from core.email_services import send_subscription_confirmation_email, send_order_confirmation_email
+from core.sms_service import send_sms
+from notifications.firebase_service import send_push_notification
 from vendor.models import Mess
 from payments.services import (
     RazorpayGateway,
@@ -25,7 +28,8 @@ from payments.services import (
     mark_payment_success,
     mark_payment_failed,
     mark_payment_cancelled,
-    refund_payment
+    refund_payment,
+    create_order_from_cart
 )
 
 logger = logging.getLogger(__name__)
@@ -159,6 +163,21 @@ def verify_payment(request):
                 message=f"You are now subscribed to {mess.mess_name} ({plan_type.upper()}) until {end}.",
                 notification_type='email'
             )
+            send_subscription_confirmation_email(
+                request.user.username,
+                request.user.email,
+                mess.mess_name,
+                plan_type.upper(),
+            )
+            send_sms(
+                request.user.phone,
+                f"Your subscription to {mess.mess_name} is now active."
+            )
+            send_push_notification(
+                request.user,
+                'Subscription activated',
+                f"Your subscription to {mess.mess_name} is now active."
+            )
         elif purpose == 'cart_checkout':
             cart = Cart.objects.filter(student=request.user).first()
             if not cart or not cart.items.exists():
@@ -166,29 +185,12 @@ def verify_payment(request):
             if Decimal(cart.total_price) != payment.amount:
                 raise ValueError('Cart total does not match payment amount.')
 
-            mess = cart.items.first().meal.mess
-            otp = f"{random.randint(100000, 999999)}"
-            order = Order.objects.create(
-                student=request.user,
-                mess=mess,
-                total_amount=payment.amount,
-                status='pending',
-                delivery_otp=otp
-            )
+            order = create_order_from_cart(request.user, cart, total_amount=payment.amount)
 
             for item in cart.items.all():
-                OrderItem.objects.create(
-                    order=order,
-                    meal=item.meal,
-                    quantity=item.quantity,
-                    price=item.meal.price
-                )
-
                 if hasattr(item.meal, 'stock'):
                     item.meal.stock = max(0, item.meal.stock - item.quantity)
                     item.meal.save()
-
-            cart.items.all().delete()
 
             payment.order = order
             payment.save()
@@ -197,6 +199,21 @@ def verify_payment(request):
                 amount=payment.amount,
                 transaction_type='order_payment',
                 description=f"Order Payment for Order #{order.id}"
+            )
+            send_order_confirmation_email(
+                request.user.username,
+                request.user.email,
+                order.id,
+                payment.amount,
+            )
+            send_sms(
+                request.user.phone,
+                f"Your food order #{order.id} has been placed successfully."
+            )
+            send_push_notification(
+                request.user,
+                'Order placed',
+                f"Your food order #{order.id} has been placed successfully."
             )
         elif purpose == 'wallet_recharge':
             profile, _ = StudentProfile.objects.get_or_create(user=request.user)
@@ -208,32 +225,24 @@ def verify_payment(request):
                 transaction_type='credit',
                 description='Wallet Recharge via Razorpay'
             )
+            send_sms(
+                request.user.phone,
+                f"Your wallet has been recharged with Rs. {payment.amount:.2f}."
+            )
+            send_push_notification(
+                request.user,
+                'Wallet recharge',
+                f"Your wallet has been recharged with Rs. {payment.amount:.2f}."
+            )
         else:
             cart = Cart.objects.filter(student=request.user).first()
             if cart and cart.items.exists() and Decimal(cart.total_price) == payment.amount:
-                mess = cart.items.first().meal.mess
-                otp = f"{random.randint(100000, 999999)}"
-                order = Order.objects.create(
-                    student=request.user,
-                    mess=mess,
-                    total_amount=payment.amount,
-                    status='pending',
-                    delivery_otp=otp
-                )
+                order = create_order_from_cart(request.user, cart, total_amount=payment.amount)
 
                 for item in cart.items.all():
-                    OrderItem.objects.create(
-                        order=order,
-                        meal=item.meal,
-                        quantity=item.quantity,
-                        price=item.meal.price
-                    )
-
                     if hasattr(item.meal, 'stock'):
                         item.meal.stock = max(0, item.meal.stock - item.quantity)
                         item.meal.save()
-
-                cart.items.all().delete()
 
                 payment.order = order
                 payment.save()
@@ -242,6 +251,21 @@ def verify_payment(request):
                     amount=payment.amount,
                     transaction_type='order_payment',
                     description=f"Order Payment for Order #{order.id}"
+                )
+                send_order_confirmation_email(
+                    request.user.username,
+                    request.user.email,
+                    order.id,
+                    payment.amount,
+                )
+                send_sms(
+                    request.user.phone,
+                    f"Your food order #{order.id} has been placed successfully."
+                )
+                send_push_notification(
+                    request.user,
+                    'Order placed',
+                    f"Your food order #{order.id} has been placed successfully."
                 )
             else:
                 profile, _ = StudentProfile.objects.get_or_create(user=request.user)
@@ -252,6 +276,15 @@ def verify_payment(request):
                     amount=payment.amount,
                     transaction_type='credit',
                     description='Wallet Recharge via Razorpay'
+                )
+                send_sms(
+                    request.user.phone,
+                    f"Your wallet has been recharged with Rs. {payment.amount:.2f}."
+                )
+                send_push_notification(
+                    request.user,
+                    'Wallet recharge',
+                    f"Your wallet has been recharged with Rs. {payment.amount:.2f}."
                 )
 
         mark_payment_success(

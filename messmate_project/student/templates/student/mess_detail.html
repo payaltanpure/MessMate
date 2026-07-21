@@ -50,8 +50,71 @@
     {% endif %}
 
     <div class="row g-4">
+        <div class="col-12">
+            <div class="card glass-card p-4 border-0">
+                <h2 class="h5 mb-3"><i class="bi bi-map-fill gradient-text me-2"></i>Location</h2>
+                {% if maps_config.enabled %}
+                    <div class="d-flex flex-wrap gap-2 mb-3">
+                        <a href="{{ directions_url }}" target="_blank" rel="noopener" class="btn btn-sm btn-outline-primary rounded-pill"><i class="bi bi-signpost-2 me-1"></i>Get Directions</a>
+                        <a href="{{ open_maps_url }}" target="_blank" rel="noopener" class="btn btn-sm btn-outline-success rounded-pill"><i class="bi bi-google me-1"></i>Open in Google Maps</a>
+                    </div>
+                    <div id="mess-map" style="height: 320px; border-radius: 16px; background: #f8fafc;"></div>
+                {% else %}
+                    <div class="border rounded-4 p-4 text-secondary" style="min-height: 220px;">
+                        <div class="d-flex flex-wrap justify-content-between align-items-start gap-3 mb-3">
+                            <div>
+                                <h3 class="h6 mb-1">{{ maps_config.placeholder_message }}</h3>
+                                <p class="mb-1"><strong>Address:</strong> {{ mess.address }}</p>
+                                <p class="mb-1"><strong>Area:</strong> {{ mess.location_name }}</p>
+                                {% if mess_map_data.has_coordinates %}
+                                    <p class="mb-0"><strong>Coordinates:</strong> {{ mess_map_data.latitude }}, {{ mess_map_data.longitude }}</p>
+                                {% else %}
+                                    <p class="mb-0 text-muted">Coordinates will be shown once the mess location is saved.</p>
+                                {% endif %}
+                            </div>
+                            <div class="d-flex flex-wrap gap-2">
+                                <a href="{{ directions_url }}" target="_blank" rel="noopener" class="btn btn-sm btn-outline-primary rounded-pill"><i class="bi bi-signpost-2 me-1"></i>Get Directions</a>
+                                <a href="{{ open_maps_url }}" target="_blank" rel="noopener" class="btn btn-sm btn-outline-success rounded-pill"><i class="bi bi-google me-1"></i>Open in Google Maps</a>
+                            </div>
+                        </div>
+                    </div>
+                {% endif %}
+            </div>
+        </div>
+
         <!-- Plans & Menu Ordering -->
         <div class="col-lg-8">
+            <!-- Recommended Meals -->
+            <div class="card glass-card p-4 border-0 mb-4">
+                <h2 class="h5 mb-3"><i class="bi bi-stars gradient-text me-2"></i>Recommended Meals</h2>
+                {% if recommended_meals %}
+                    <div class="row g-3">
+                        {% for meal in recommended_meals %}
+                            <div class="col-md-6">
+                                <div class="p-3 bg-body-tertiary rounded-4 border h-100 d-flex flex-column justify-content-between">
+                                    <div>
+                                        <div class="d-flex justify-content-between align-items-start mb-2">
+                                            <h3 class="h6 mb-0">{{ meal.name }}</h3>
+                                            <span class="badge bg-secondary-subtle text-secondary text-capitalize" style="font-size:0.75rem;">{{ meal.meal_type }}</span>
+                                        </div>
+                                        <p class="text-secondary small mb-3">{{ meal.menu_items }}</p>
+                                    </div>
+                                    <div class="d-flex justify-content-between align-items-center">
+                                        <span class="fw-bold text-primary">Rs. {{ meal.price }}</span>
+                                        <form method="POST" action="{% url 'add_to_cart' meal.id %}" class="d-inline">
+                                            {% csrf_token %}
+                                            <button type="submit" class="btn btn-gradient btn-sm rounded-pill px-3"><i class="bi bi-cart-plus me-1"></i>Add Tiffin</button>
+                                        </form>
+                                    </div>
+                                </div>
+                            </div>
+                        {% endfor %}
+                    </div>
+                {% else %}
+                    <p class="text-secondary text-center py-2 mb-0">No recommendations available for this mess right now.</p>
+                {% endif %}
+            </div>
+
             <!-- Tiffin Ordering Menu -->
             <div class="card glass-card p-4 border-0 mb-4">
                 <h2 class="h5 mb-4"><i class="bi bi-basket3 gradient-text me-2"></i>Daily Tiffin Menu</h2>
@@ -222,4 +285,22 @@
         </div>
     </div>
 </div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+    document.addEventListener('DOMContentLoaded', function () {
+        const mapContainer = document.getElementById('mess-map');
+        if (!mapContainer) return;
+        const apiKey = '{{ google_maps_api_key|default:"" }}';
+        if (!apiKey) {
+            mapContainer.innerHTML = '<div class="h-100 d-flex align-items-center justify-content-center text-secondary"><div><i class="bi bi-map fs-3 d-block mb-2"></i><div>{{ maps_config.placeholder_message }}</div></div></div>';
+            return;
+        }
+        const center = { lat: {{ mess_map_data.latitude }}, lng: {{ mess_map_data.longitude }} };
+        const map = new google.maps.Map(mapContainer, { zoom: 14, center });
+        new google.maps.Marker({ position: center, map });
+    });
+</script>
+<script async defer src="https://maps.googleapis.com/maps/api/js?key={{ google_maps_api_key }}"></script>
 {% endblock %}

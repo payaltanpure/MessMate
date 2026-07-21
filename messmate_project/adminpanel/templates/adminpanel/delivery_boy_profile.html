@@ -1,0 +1,77 @@
+{% extends 'base.html' %}
+
+{% block title %}Delivery Boy Profile - SMARTMESS AI{% endblock %}
+
+{% block content %}
+<div class="container py-4">
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <div>
+            <h1 class="h3 mb-1">Delivery Boy Profile</h1>
+            <p class="text-muted mb-0">Review activity and account details for {{ delivery_boy.get_full_name|default:delivery_boy.username }}.</p>
+        </div>
+        <a href="{% url 'adminpanel:manage_delivery_boys' %}" class="btn btn-outline-secondary">Back to Delivery Boys</a>
+    </div>
+
+    <div class="row g-4">
+        <div class="col-lg-4">
+            <div class="card glass-card border-0 h-100">
+                <div class="card-body">
+                    <h5 class="card-title">Account Details</h5>
+                    <p class="mb-1"><strong>Username:</strong> {{ delivery_boy.username }}</p>
+                    <p class="mb-1"><strong>Email:</strong> {{ delivery_boy.email|default:'-' }}</p>
+                    <p class="mb-1"><strong>Phone:</strong> {{ delivery_boy.phone|default:'-' }}</p>
+                    <p class="mb-1"><strong>Verification:</strong>
+                        {% if profile.verification_status == 'approved' %}
+                            <span class="badge bg-success-subtle text-success">Approved</span>
+                        {% elif profile.verification_status == 'rejected' %}
+                            <span class="badge bg-danger-subtle text-danger">Rejected</span>
+                        {% else %}
+                            <span class="badge bg-warning-subtle text-warning">Pending</span>
+                        {% endif %}
+                    </p>
+                    <p class="mb-1"><strong>Status:</strong> {% if delivery_boy.is_active %}<span class="badge bg-success-subtle text-success">Active</span>{% else %}<span class="badge bg-danger-subtle text-danger">Blocked</span>{% endif %}</p>
+                    {% if profile %}
+                        <p class="mb-1"><strong>Vehicle Number:</strong> {{ profile.vehicle_number|default:'-' }}</p>
+                        <p class="mb-1"><strong>License Number:</strong> {{ profile.license_number|default:'-' }}</p>
+                        <p class="mb-1"><strong>Vehicle Type:</strong> {{ profile.vehicle_type|default:'-' }}</p>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+
+        <div class="col-lg-8">
+            <div class="card glass-card border-0">
+                <div class="card-body">
+                    <h5 class="card-title">Recent Assignments</h5>
+                    {% if assigned_orders %}
+                        <div class="table-responsive">
+                            <table class="table table-sm align-middle mb-0">
+                                <thead>
+                                    <tr>
+                                        <th>Order ID</th>
+                                        <th>Student</th>
+                                        <th>Status</th>
+                                        <th>Date</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    {% for order in assigned_orders %}
+                                    <tr>
+                                        <td>#{{ order.id }}</td>
+                                        <td>{{ order.student.get_full_name|default:order.student.username }}</td>
+                                        <td>{{ order.get_status_display }}</td>
+                                        <td>{{ order.order_date|date:'M d, Y' }}</td>
+                                    </tr>
+                                    {% endfor %}
+                                </tbody>
+                            </table>
+                        </div>
+                    {% else %}
+                        <p class="text-muted mb-0">No assignments yet.</p>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

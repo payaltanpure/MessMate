@@ -55,6 +55,10 @@
                                 {% endif %}
                             </div>
                         </div>
+                        <div class="col-md-6">
+                            <div class="fw-semibold">Created Date</div>
+                            <div>{{ meal.created_date|date:"Y-m-d"|default:"—" }}</div>
+                        </div>
                     </div>
                     <div class="mt-4 d-flex gap-2 flex-wrap">
                         <form method="post" action="{% url 'adminpanel:toggle_meal_status' meal.id %}" class="d-inline">

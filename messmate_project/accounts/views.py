@@ -4,6 +4,7 @@ from django.contrib import messages
 from django.contrib.auth.forms import PasswordResetForm
 from .forms import RegisterForm
 from .models import User, StudentProfile, VendorProfile, DeliveryBoyProfile
+from core.email_services import send_registration_email, send_password_reset_email
 
 def home(request):
     return render(request, 'core/home.html')
@@ -29,15 +30,24 @@ def register(request):
                     contact_number=user.phone or "Update Contact"
                 )
             elif user.role == 'delivery':
-                DeliveryBoyProfile.objects.create(
+                DeliveryBoyProfile.objects.get_or_create(
                     user=user,
-                    vehicle_number="Update Vehicle Number"
+                    defaults={
+                        'vehicle_number': 'Update Vehicle Number',
+                        'availability_status': 'available',
+                    }
                 )
 
-            # Generate mock verification email link
+            verification_url = f"http://127.0.0.1:8000/verify-email/{user.id}/"
+            send_registration_email(
+                user_type=user.role,
+                user_name=user.username,
+                email=user.email,
+                verification_url=verification_url,
+            )
             messages.success(
-                request, 
-                f"Registration successful! Mock Email Verification Link: http://127.0.0.1:8000/verify-email/{user.id}/"
+                request,
+                f"Registration successful! Verification email sent to {user.email}."
             )
             return redirect('login')
     else:
@@ -94,11 +104,9 @@ def forgot_password(request):
         email = request.POST.get('email')
         user = User.objects.filter(email=email).first()
         if user:
-            # Render a mock reset link
-            messages.success(
-                request, 
-                f"Reset link generated: http://127.0.0.1:8000/reset-password/{user.id}/"
-            )
+            reset_url = f"http://127.0.0.1:8000/reset-password/{user.id}/"
+            send_password_reset_email(user.username, user.email, reset_url)
+            messages.success(request, f"Password reset instructions sent to {user.email}.")
         else:
             messages.error(request, "No account found with this email.")
     return render(request, 'accounts/forgot_password.html')

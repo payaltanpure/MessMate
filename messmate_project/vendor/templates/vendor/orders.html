@@ -15,10 +15,11 @@
                 <thead>
                     <tr>
                         <th>Order ID</th>
-                        <th>Date & Time</th>
                         <th>Student</th>
                         <th>Mess</th>
-                        <th>Total Amount</th>
+                        <th>Meals</th>
+                        <th>Total</th>
+                        <th>Time</th>
                         <th>Status</th>
                         <th>Action</th>
                     </tr>
@@ -27,40 +28,95 @@
                     {% for order in orders %}
                     <tr>
                         <td><span class="fw-bold">#{{ order.id }}</span></td>
-                        <td>{{ order.order_date|date:"d M, h:i A" }}</td>
                         <td>
                             <div class="d-flex align-items-center gap-2">
                                 <div class="bg-primary-subtle text-primary rounded-circle d-flex justify-content-center align-items-center" style="width:32px; height:32px;">
                                     <i class="bi bi-person"></i>
                                 </div>
-                                <span>{{ order.student.first_name|default:order.student.username }}</span>
+                                <div>
+                                    <div>{{ order.student.first_name|default:order.student.username }}</div>
+                                    <small class="text-secondary">{{ order.student.phone|default:"N/A" }}</small>
+                                </div>
                             </div>
                         </td>
                         <td>{{ order.mess.mess_name }}</td>
+                        <td>
+                            <div class="small">
+                                {% for item in order.items.all %}
+                                    <div>{{ item.quantity }}x {{ item.meal.name }}</div>
+                                {% empty %}
+                                    <div class="text-secondary">No items listed.</div>
+                                {% endfor %}
+                            </div>
+                        </td>
                         <td class="fw-bold text-success">Rs. {{ order.total_amount }}</td>
+                        <td>{{ order.order_date|date:"d M, h:i A" }}</td>
                         <td>
                             <span class="badge 
                                 {% if order.status == 'delivered' %}bg-success-subtle text-success
-                                {% elif order.status == 'pending' %}bg-warning-subtle text-warning
                                 {% elif order.status == 'cancelled' %}bg-danger-subtle text-danger
-                                {% else %}bg-info-subtle text-info{% endif %} px-2 py-1 rounded">
+                                {% elif order.status == 'ready_for_pickup' or order.status == 'assigned' or order.status == 'out_for_delivery' %}bg-info-subtle text-info
+                                {% elif order.status == 'accepted' or order.status == 'preparing' %}bg-warning-subtle text-warning
+                                {% else %}bg-secondary-subtle text-secondary{% endif %} px-2 py-1 rounded">
                                 {{ order.get_status_display }}
                             </span>
                         </td>
                         <td>
-                            <!-- Status Update Form -->
-                            <form method="POST" action="{% url 'update_order_status' order.id %}" class="d-flex gap-2">
-                                {% csrf_token %}
-                                <select name="status" class="form-select form-select-sm rounded-pill bg-body-tertiary" style="width: auto;">
-                                    <option value="pending" {% if order.status == 'pending' %}selected{% endif %}>Pending</option>
-                                    <option value="accepted" {% if order.status == 'accepted' %}selected{% endif %}>Accepted</option>
-                                    <option value="preparing" {% if order.status == 'preparing' %}selected{% endif %}>Preparing</option>
-                                    <option value="out_for_delivery" {% if order.status == 'out_for_delivery' %}selected{% endif %}>Out for Delivery</option>
-                                    <option value="delivered" {% if order.status == 'delivered' %}selected{% endif %}>Delivered</option>
-                                    <option value="cancelled" {% if order.status == 'cancelled' %}selected{% endif %}>Cancelled</option>
-                                </select>
-                                <button type="submit" class="btn btn-sm btn-outline-primary rounded-pill">Update</button>
-                            </form>
+                            <div class="d-flex flex-column gap-2">
+                                {% if order.status == 'pending' %}
+                                    <form method="post" action="{% url 'update_order_status' order.id %}">
+                                        {% csrf_token %}
+                                        <input type="hidden" name="status" value="accepted">
+                                        <button type="submit" class="btn btn-sm btn-success rounded-pill">Accept</button>
+                                    </form>
+                                    <form method="post" action="{% url 'update_order_status' order.id %}">
+                                        {% csrf_token %}
+                                        <input type="hidden" name="status" value="cancelled">
+                                        <button type="submit" class="btn btn-sm btn-outline-danger rounded-pill">Cancel</button>
+                                    </form>
+                                {% elif order.status == 'accepted' %}
+                                    <form method="post" action="{% url 'update_order_status' order.id %}">
+                                        {% csrf_token %}
+                                        <input type="hidden" name="status" value="preparing">
+                                        <button type="submit" class="btn btn-sm btn-warning rounded-pill">Start Preparing</button>
+                                    </form>
+                                    <form method="post" action="{% url 'update_order_status' order.id %}">
+                                        {% csrf_token %}
+                                        <input type="hidden" name="status" value="cancelled">
+                                        <button type="submit" class="btn btn-sm btn-outline-danger rounded-pill">Cancel</button>
+                                    </form>
+                                {% elif order.status == 'preparing' %}
+                                    <form method="post" action="{% url 'update_order_status' order.id %}">
+                                        {% csrf_token %}
+                                        <input type="hidden" name="status" value="ready_for_pickup">
+                                        <button type="submit" class="btn btn-sm btn-info rounded-pill">Ready for Pickup</button>
+                                    </form>
+                                    <form method="post" action="{% url 'update_order_status' order.id %}">
+                                        {% csrf_token %}
+                                        <input type="hidden" name="status" value="cancelled">
+                                        <button type="submit" class="btn btn-sm btn-outline-danger rounded-pill">Cancel</button>
+                                    </form>
+                                {% elif order.status == 'ready_for_pickup' %}
+                                    <a href="{% url 'assign_delivery_boy' order.id %}" class="btn btn-sm btn-success rounded-pill">Assign Delivery Boy</a>
+                                {% elif order.status == 'assigned' %}
+                                    {% if order.delivery_boy %}
+                                        <span class="badge bg-info-subtle text-info rounded-pill">Assigned: {{ order.delivery_boy.first_name|default:order.delivery_boy.username }}</span>
+                                    {% endif %}
+                                    <a href="{% url 'assign_delivery_boy' order.id %}" class="btn btn-sm btn-outline-info rounded-pill">Change Delivery Boy</a>
+                                {% elif order.status == 'out_for_delivery' %}
+                                    <span class="badge bg-info-subtle text-info rounded-pill">Waiting for Delivery</span>
+                                {% elif order.status == 'delivered' %}
+                                    <form method="post" action="{% url 'update_order_status' order.id %}">
+                                        {% csrf_token %}
+                                        <input type="hidden" name="status" value="completed">
+                                        <button type="submit" class="btn btn-sm btn-outline-success rounded-pill">Mark Completed</button>
+                                    </form>
+                                {% elif order.status == 'completed' %}
+                                    <span class="badge bg-success-subtle text-success rounded-pill">Completed</span>
+                                {% elif order.status == 'cancelled' %}
+                                    <span class="badge bg-danger-subtle text-danger rounded-pill">Read Only</span>
+                                {% endif %}
+                            </div>
                         </td>
                     </tr>
                     {% endfor %}

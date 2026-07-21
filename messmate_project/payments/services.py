@@ -6,17 +6,19 @@ from django.db import transaction
 from django.core.exceptions import ImproperlyConfigured
 import razorpay
 from razorpay.errors import SignatureVerificationError
-from student.models import Payment, WalletTransaction
+from student.models import Payment, WalletTransaction, Order, OrderItem, Cart
+from core.integration_fallbacks import is_demo_mode_enabled, log_demo_fallback
 
 # Razorpay Integration (Temporarily Disabled)
 SIMULATED_PAYMENT_FLOW_ENABLED = True
 
 
 def get_razorpay_client():
-    if SIMULATED_PAYMENT_FLOW_ENABLED:
-        return None
     key_id = getattr(settings, 'RAZORPAY_KEY_ID', None)
     key_secret = getattr(settings, 'RAZORPAY_KEY_SECRET', None)
+    if SIMULATED_PAYMENT_FLOW_ENABLED or is_demo_mode_enabled('razorpay', [key_id, key_secret]):
+        log_demo_fallback('razorpay', 'Razorpay keys missing', 'simulate payment success and generate demo transaction IDs')
+        return None
     if not key_id or not key_secret:
         raise ImproperlyConfigured('Razorpay API keys are not configured. Set RAZORPAY_KEY_ID and RAZORPAY_KEY_SECRET.')
     return razorpay.Client(auth=(key_id, key_secret))
@@ -48,7 +50,7 @@ class RazorpayGateway:
 
 def create_razorpay_order(amount, receipt, currency='INR', notes=None):
     # Razorpay Integration (Temporarily Disabled)
-    if SIMULATED_PAYMENT_FLOW_ENABLED:
+    if SIMULATED_PAYMENT_FLOW_ENABLED or is_demo_mode_enabled('razorpay', [getattr(settings, 'RAZORPAY_KEY_ID', None), getattr(settings, 'RAZORPAY_KEY_SECRET', None)]):
         return f'simulated-order-{receipt}'
     client = get_razorpay_client()
     amount_paise = int(Decimal(amount) * 100)
@@ -67,7 +69,7 @@ def create_razorpay_order(amount, receipt, currency='INR', notes=None):
 
 def verify_payment_signature(razorpay_order_id, razorpay_payment_id, razorpay_signature, expected_amount=None):
     # Razorpay Integration (Temporarily Disabled)
-    if SIMULATED_PAYMENT_FLOW_ENABLED:
+    if SIMULATED_PAYMENT_FLOW_ENABLED or is_demo_mode_enabled('razorpay', [getattr(settings, 'RAZORPAY_KEY_ID', None), getattr(settings, 'RAZORPAY_KEY_SECRET', None)]):
         return True
     client = get_razorpay_client()
     params = {
@@ -160,3 +162,33 @@ def create_payment_record(user, amount, payment_method='online', gateway='razorp
         status='pending'
     )
     return p
+
+
+def create_order_from_cart(student, cart, total_amount, delivery_otp=None):
+    if not isinstance(cart, Cart):
+        cart = Cart.objects.select_related('student').get(student=student)
+
+    if not cart.items.exists():
+        raise ValueError('Cart is empty.')
+
+    mess = cart.items.first().meal.mess
+    otp = delivery_otp or f"{os.urandom(2).hex()}"
+
+    with transaction.atomic():
+        order = Order.objects.create(
+            student=student,
+            mess=mess,
+            total_amount=Decimal(total_amount),
+            status='pending',
+            delivery_otp=otp,
+        )
+        for item in cart.items.select_related('meal').all():
+            OrderItem.objects.create(
+                order=order,
+                meal=item.meal,
+                quantity=item.quantity,
+                price=item.meal.price,
+            )
+        cart.items.all().delete()
+
+    return order

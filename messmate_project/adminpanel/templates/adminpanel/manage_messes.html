@@ -57,7 +57,10 @@
                             <div class="small text-secondary">{{ mess.diet_type|title }}</div>
                         </td>
                         <td>{{ mess.vendor.get_full_name|default:mess.vendor.username }}</td>
-                        <td>{{ mess.location_name }}</td>
+                        <td>
+                            <div class="fw-semibold">{{ mess.location_name }}</div>
+                            {% if mess.address %}<div class="small text-secondary">{{ mess.address }}</div>{% endif %}
+                        </td>
                         <td>{{ mess.meals.count }}</td>
                         <td>{{ mess.subscriptions.count }}</td>
                         <td>{{ mess.average_rating }}</td>

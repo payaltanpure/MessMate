@@ -3,6 +3,9 @@ from django.contrib.auth.decorators import login_required
 from django.contrib import messages
 from django.db.models import Sum, Count
 from django.db.models.functions import TruncDate
+from django.conf import settings
+
+from core.email_services import send_admin_notification, send_critical_alert_email, send_daily_report_email
 
 from accounts.models import User, VendorProfile, DeliveryBoyProfile
 from student.models import Order, Subscription, Payment, Complaint
@@ -57,6 +60,20 @@ def admin_dashboard(request):
     paused_subs = Subscription.objects.filter(status='paused').count()
     expired_subs = Subscription.objects.filter(status='expired').count()
 
+    if settings.DEFAULT_FROM_EMAIL:
+        send_daily_report_email(
+            settings.DEFAULT_FROM_EMAIL,
+            f"SMARTMESS AI daily summary\nUsers: {total_users}\nVendors: {total_vendors}\nOrders: {total_orders}\nRevenue: {total_revenue}",
+            category='daily_report',
+        )
+
+    if complaints.exists() and settings.DEFAULT_FROM_EMAIL:
+        send_critical_alert_email(
+            settings.DEFAULT_FROM_EMAIL,
+            f"There are {complaints.count()} active complaints pending review.",
+            category='critical_alert',
+        )
+
     context = {
         'total_users': total_users,
         'total_vendors': total_vendors,
@@ -84,6 +101,13 @@ def approve_vendor(request, profile_id):
     profile = get_object_or_404(VendorProfile, id=profile_id)
     profile.verification_status = 'approved'
     profile.save()
+    if profile.user and profile.user.email:
+        send_admin_notification(
+            profile.user.email,
+            'Vendor approved',
+            'Your vendor registration has been approved by the admin.',
+            category='vendor_registration',
+        )
     messages.success(request, f"Vendor '{profile.business_name}' approved successfully!")
     return redirect('admin_dashboard')
 
@@ -95,6 +119,13 @@ def reject_vendor(request, profile_id):
     profile = get_object_or_404(VendorProfile, id=profile_id)
     profile.verification_status = 'rejected'
     profile.save()
+    if profile.user and profile.user.email:
+        send_admin_notification(
+            profile.user.email,
+            'Vendor registration update',
+            'Your vendor registration was rejected by the admin. Please contact support for details.',
+            category='vendor_registration',
+        )
     messages.warning(request, f"Vendor '{profile.business_name}' verification rejected.")
     return redirect('admin_dashboard')
 

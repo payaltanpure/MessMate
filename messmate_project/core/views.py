@@ -1,6 +1,9 @@
 from django.shortcuts import render
 from django.http import JsonResponse
 from django.views.decorators.csrf import csrf_exempt
+from drf_yasg import openapi
+from drf_yasg.utils import swagger_auto_schema
+from rest_framework.decorators import api_view
 from vendor.models import Mess
 from .ai_services import get_chatbot_response, recommend_messes
 import json
@@ -62,6 +65,25 @@ def home(request):
     return render(request, 'core/home.html', context)
 
 
+@swagger_auto_schema(
+    methods=['post'],
+    tags=['AI'],
+    operation_description='Send a message to the SmartMess assistant and receive an AI-generated reply.',
+    request_body=openapi.Schema(
+        type=openapi.TYPE_OBJECT,
+        required=['message'],
+        properties={
+            'message': openapi.Schema(type=openapi.TYPE_STRING, description='User question or request'),
+        },
+    ),
+    responses={200: openapi.Response('AI-generated reply', schema=openapi.Schema(
+        type=openapi.TYPE_OBJECT,
+        properties={
+            'reply': openapi.Schema(type=openapi.TYPE_STRING, description='Assistant response text'),
+        },
+    ))},
+)
+@api_view(['POST'])
 @csrf_exempt
 def chatbot_api(request):
     """
@@ -73,8 +95,12 @@ def chatbot_api(request):
             user_message = data.get('message', '')
             if not user_message:
                 return JsonResponse({'error': 'Empty message'}, status=400)
-            
-            response_text = get_chatbot_response(user_message, request.user if request.user.is_authenticated else None)
+
+            user_obj = request.user if request.user.is_authenticated else None
+            if user_obj is None and data.get('role'):
+                user_obj = type('ChatbotUser', (), {'role': data.get('role')})()
+
+            response_text = get_chatbot_response(user_message, user_obj)
             return JsonResponse({'reply': response_text})
         except Exception as e:
             return JsonResponse({'error': str(e)}, status=500)
@@ -82,6 +108,24 @@ def chatbot_api(request):
     return JsonResponse({'error': 'POST method required'}, status=405)
 
 
+@swagger_auto_schema(
+    methods=['get'],
+    tags=['AI'],
+    operation_description='Retrieve AI-driven mess recommendations based on diet preference and budget.',
+    manual_parameters=[
+        openapi.Parameter('diet', openapi.IN_QUERY, description='Diet preference', type=openapi.TYPE_STRING),
+        openapi.Parameter('budget', openapi.IN_QUERY, description='Optional maximum budget', type=openapi.TYPE_NUMBER),
+    ],
+    responses={200: openapi.Response('Recommendations payload', schema=openapi.Schema(
+        type=openapi.TYPE_OBJECT,
+        properties={
+            'best_mess': openapi.Schema(type=openapi.TYPE_OBJECT, description='Best overall mess recommendation'),
+            'best_value': openapi.Schema(type=openapi.TYPE_OBJECT, description='Best value recommendation'),
+            'most_popular': openapi.Schema(type=openapi.TYPE_OBJECT, description='Most popular recommendation'),
+        },
+    ))},
+)
+@api_view(['GET'])
 def recommendation_api(request):
     """
     JSON API for recommendations.

@@ -1,0 +1,134 @@
+{% extends 'base.html' %}
+
+{% block title %}SMARTMESS AI - Delivery Dashboard{% endblock %}
+
+{% block content %}
+<div class="container py-4">
+    <div class="row g-4">
+        <div class="col-lg-3">
+            <div class="card glass-card border-0 p-3">
+                <h3 class="h6 text-uppercase text-secondary mb-3">Delivery Menu</h3>
+                <div class="d-grid gap-2">
+                    <a href="{% url 'delivery_dashboard' %}" class="btn btn-gradient rounded-pill">Dashboard</a>
+                    <a href="{% url 'delivery_profile' %}" class="btn btn-soft rounded-pill">Profile</a>
+                    <a href="{% url 'delivery_orders' %}" class="btn btn-soft rounded-pill">Orders</a>
+                </div>
+            </div>
+        </div>
+
+        <div class="col-lg-9">
+            <div class="row g-4">
+                <div class="col-lg-4">
+                    <div class="card glass-card border-0 p-4 h-100">
+                        <div class="d-flex align-items-center gap-3 mb-3">
+                            <div class="icon-badge"><i class="bi bi-box-seam"></i></div>
+                            <div>
+                                <h2 class="h5 mb-1">Welcome, {{ request.user.username }}</h2>
+                                <p class="text-secondary mb-0">Delivery Boy Dashboard</p>
+                            </div>
+                        </div>
+                        <p class="text-secondary">Review your assigned deliveries and update them with the available actions.</p>
+                        <div class="border rounded-3 p-3 mt-3 bg-body-tertiary">
+                            <div class="d-flex align-items-center gap-3 mb-2">
+                                {% if profile.photo %}
+                                    <img src="{{ profile.photo.url }}" alt="Delivery profile" class="rounded-circle" style="width:48px;height:48px;object-fit:cover;">
+                                {% else %}
+                                    <div class="icon-badge"><i class="bi bi-person-circle"></i></div>
+                                {% endif %}
+                                <div>
+                                    <div class="fw-bold">{{ request.user.get_full_name|default:request.user.username }}</div>
+                                    <div class="small text-secondary">Availability: {{ profile.get_availability_status_display }}</div>
+                                </div>
+                            </div>
+                            <div class="small text-secondary">Vehicle: {{ profile.get_vehicle_type_display }} · {{ profile.vehicle_number|default:'Pending' }}</div>
+                            <div class="small text-secondary">Emergency: {{ profile.emergency_contact|default:'Pending' }}</div>
+                        </div>
+                        <div class="d-grid gap-2 mt-3">
+                            <a href="{% url 'delivery_profile' %}" class="btn btn-gradient rounded-pill">View Profile</a>
+                            <a href="{% url 'delivery_orders' %}" class="btn btn-soft rounded-pill">View Orders</a>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="col-lg-8">
+                    <div class="card glass-card border-0 p-4">
+                        <div class="d-flex justify-content-between align-items-center mb-3">
+                            <h3 class="h5 mb-0">Assigned Orders</h3>
+                            <span class="badge bg-success-subtle text-success rounded-pill">{{ assigned_orders|length }} assigned</span>
+                        </div>
+                        {% if assigned_orders %}
+                            <div class="list-group">
+                                {% for order in assigned_orders %}
+                                    <div class="list-group-item rounded-3 mb-2 border-0 shadow-sm">
+                                        <div class="d-flex justify-content-between align-items-start gap-3">
+                                            <div>
+                                                <h6 class="mb-1">Order #{{ order.id }}</h6>
+                                                <p class="mb-1 text-secondary">{{ order.mess.mess_name }} · {{ order.student.first_name|default:order.student.username }}</p>
+                                                <small class="text-muted">Status: {{ order.get_status_display }}</small>
+                                            </div>
+                                            <div class="text-end">
+                                                <p class="mb-1 fw-bold">Rs. {{ order.total_amount }}</p>
+                                                {% if order.status == 'assigned' %}
+                                                    <div class="d-flex gap-2 justify-content-end flex-wrap">
+                                                        <form method="post" action="{% url 'update_delivery_status' order.id 'picked_up' %}" class="d-inline">
+                                                            {% csrf_token %}
+                                                            <button type="submit" class="btn btn-sm btn-success rounded-pill">Accept</button>
+                                                        </form>
+                                                        <form method="post" action="{% url 'reject_delivery_assignment' order.id %}" class="d-inline">
+                                                            {% csrf_token %}
+                                                            <button type="submit" class="btn btn-sm btn-outline-danger rounded-pill">Reject</button>
+                                                        </form>
+                                                    </div>
+                                                {% elif order.status == 'picked_up' %}
+                                                    <form method="post" action="{% url 'update_delivery_status' order.id 'out_for_delivery' %}" class="d-inline">
+                                                        {% csrf_token %}
+                                                        <button type="submit" class="btn btn-sm btn-primary rounded-pill">Out for Delivery</button>
+                                                    </form>
+                                                {% elif order.status == 'out_for_delivery' %}
+                                                    <form method="post" action="{% url 'update_delivery_status' order.id 'delivered' %}" class="d-inline">
+                                                        {% csrf_token %}
+                                                        <button type="submit" class="btn btn-sm btn-primary rounded-pill">Delivered</button>
+                                                    </form>
+                                                {% endif %}
+                                            </div>
+                                        </div>
+                                    </div>
+                                {% endfor %}
+                            </div>
+                        {% else %}
+                            <div class="empty-state">No assigned orders at the moment.</div>
+                        {% endif %}
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="row g-4 mt-2">
+        <div class="col-12 col-md-6 col-lg-3">
+            <div class="card glass-card border-0 p-3 h-100">
+                <div class="text-secondary small">Today's Deliveries</div>
+                <div class="fw-bold fs-3 mt-1">{{ todays_deliveries }}</div>
+            </div>
+        </div>
+        <div class="col-12 col-md-6 col-lg-3">
+            <div class="card glass-card border-0 p-3 h-100">
+                <div class="text-secondary small">Pending Deliveries</div>
+                <div class="fw-bold fs-3 mt-1">{{ pending_deliveries }}</div>
+            </div>
+        </div>
+        <div class="col-12 col-md-6 col-lg-3">
+            <div class="card glass-card border-0 p-3 h-100">
+                <div class="text-secondary small">Completed Deliveries</div>
+                <div class="fw-bold fs-3 mt-1">{{ performance_summary.completed }}</div>
+            </div>
+        </div>
+        <div class="col-12 col-md-6 col-lg-3">
+            <div class="card glass-card border-0 p-3 h-100">
+                <div class="text-secondary small">Assigned Orders</div>
+                <div class="fw-bold fs-3 mt-1">{{ performance_summary.assigned }}</div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

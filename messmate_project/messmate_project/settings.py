@@ -23,12 +23,12 @@ load_dotenv(BASE_DIR.parent / ".env")
 # See https://docs.djangoproject.com/en/5.2/howto/deployment/checklist/
 
 # SECURITY WARNING: keep the secret key used in production secret!
-SECRET_KEY = 'django-insecure-(tse46od$)o@fudo1lvxl*j5mg0z5+jfy55u-_kx%izgz+4=5o'
+SECRET_KEY = os.getenv('SECRET_KEY', 'django-insecure-(tse46od$)o@fudo1lvxl*j5mg0z5+jfy55u-_kx%izgz+4=5o')
 
 # SECURITY WARNING: don't run with debug turned on in production!
-DEBUG = True
-
-ALLOWED_HOSTS = []
+DEBUG = os.getenv('DEBUG', 'False').lower() in {'1', 'true', 'yes', 'on'}
+DEMO_MODE = os.getenv('DEMO_MODE', 'False').strip().lower() in {'1', 'true', 'yes', 'on'}
+ALLOWED_HOSTS = [host.strip() for host in os.getenv('ALLOWED_HOSTS', 'localhost,127.0.0.1').split(',') if host.strip()]
 
 
 # Application definition
@@ -58,6 +58,7 @@ INSTALLED_APPS = [
 
 MIDDLEWARE = [
     'django.middleware.security.SecurityMiddleware',
+    'whitenoise.middleware.WhiteNoiseMiddleware',
     'django.contrib.sessions.middleware.SessionMiddleware',
     'django.middleware.common.CommonMiddleware',
     'django.middleware.csrf.CsrfViewMiddleware',
@@ -78,6 +79,7 @@ TEMPLATES = [
                 'django.template.context_processors.request',
                 'django.contrib.auth.context_processors.auth',
                 'django.contrib.messages.context_processors.messages',
+                'messmate_project.context_processors.ga_measurement_id',
             ],
         },
     },
@@ -131,7 +133,9 @@ USE_TZ = True
 # Static files (CSS, JavaScript, Images)
 # https://docs.djangoproject.com/en/5.2/howto/static-files/
 
-STATIC_URL = 'static/'
+STATIC_URL = '/static/'
+STATIC_ROOT = BASE_DIR / 'staticfiles'
+STATICFILES_STORAGE = 'whitenoise.storage.CompressedManifestStaticFilesStorage'
 
 # Default primary key field type
 # https://docs.djangoproject.com/en/5.2/ref/settings/#default-auto-field
@@ -142,9 +146,6 @@ AUTH_USER_MODEL = 'accounts.User'
 # Media Files Settings
 MEDIA_URL = '/media/'
 MEDIA_ROOT = BASE_DIR / 'media'
-
-# Static Files Settings for deployment
-STATIC_ROOT = BASE_DIR / 'staticfiles'
 
 # Django Crispy Forms Settings
 CRISPY_ALLOWED_TEMPLATE_PACKS = "bootstrap5"
@@ -177,6 +178,27 @@ SIMPLE_JWT = {
 RAZORPAY_KEY_ID = os.getenv('RAZORPAY_KEY_ID')
 RAZORPAY_KEY_SECRET = os.getenv('RAZORPAY_KEY_SECRET')
 
+# SMS Settings
+SMS_PROVIDER = os.getenv('SMS_PROVIDER', '').strip().lower()
+TWILIO_ACCOUNT_SID = os.getenv('TWILIO_ACCOUNT_SID', '').strip()
+TWILIO_AUTH_TOKEN = os.getenv('TWILIO_AUTH_TOKEN', '').strip()
+TWILIO_FROM_NUMBER = os.getenv('TWILIO_FROM_NUMBER', '').strip()
+FAST2SMS_API_KEY = os.getenv('FAST2SMS_API_KEY', '').strip()
+FAST2SMS_SENDER_ID = os.getenv('FAST2SMS_SENDER_ID', '').strip()
+
+# Firebase / Push Notification Settings
+FIREBASE_PROJECT_ID = os.getenv('FIREBASE_PROJECT_ID', '').strip()
+FIREBASE_CREDENTIALS_JSON = os.getenv('FIREBASE_CREDENTIALS_JSON', '').strip()
+
+# Google Maps Settings
+GOOGLE_MAPS_API_KEY = os.getenv('GOOGLE_MAPS_API_KEY', '').strip()
+
+# Weather Settings
+OPENWEATHER_API_KEY = os.getenv('OPENWEATHER_API_KEY', '').strip()
+
+# Google Analytics Settings
+GA_MEASUREMENT_ID = os.getenv('GA_MEASUREMENT_ID', '').strip()
+
 # AI Settings
-GEMINI_API_KEY = "mock_key_or_user_env_key"
+GEMINI_API_KEY = os.getenv('GEMINI_API_KEY', 'mock_key_or_user_env_key')
 

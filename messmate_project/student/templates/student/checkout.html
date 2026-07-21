@@ -25,6 +25,30 @@
                     </ul>
                 </div>
                 
+                <div class="p-3 bg-body-tertiary rounded-4 border mb-4">
+                    <h2 class="h6 text-secondary mb-3">Recommended Meals</h2>
+                    {% if recommended_meals %}
+                        <div class="row g-2">
+                            {% for meal in recommended_meals %}
+                                <div class="col-12">
+                                    <div class="d-flex justify-content-between align-items-center border rounded-3 p-2">
+                                        <div>
+                                            <div class="fw-bold small">{{ meal.name }}</div>
+                                            <div class="text-secondary small">{{ meal.mess.mess_name }} • Rs. {{ meal.price }}</div>
+                                        </div>
+                                        <form method="POST" action="{% url 'add_to_cart' meal.id %}" class="d-inline">
+                                            {% csrf_token %}
+                                            <button type="submit" class="btn btn-outline-primary btn-sm rounded-pill">Add</button>
+                                        </form>
+                                    </div>
+                                </div>
+                            {% endfor %}
+                        </div>
+                    {% else %}
+                        <p class="text-secondary small mb-0">No recommendations available right now.</p>
+                    {% endif %}
+                </div>
+
                 <form method="POST">
                     {% csrf_token %}
                     <label class="form-label small fw-bold mb-3 d-block">Select Payment Option</label>

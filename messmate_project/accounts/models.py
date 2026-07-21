@@ -13,6 +13,7 @@ class User(AbstractUser):
     phone = models.CharField(max_length=15, blank=True, null=True)
     address = models.TextField(blank=True, null=True)
     email_verified = models.BooleanField(default=False)
+    fcm_token = models.CharField(max_length=255, blank=True, null=True)
 
     def __str__(self):
         return f"{self.username} ({self.get_role_display()})"
@@ -54,8 +55,24 @@ class DeliveryBoyProfile(models.Model):
         ('approved', 'Approved'),
         ('rejected', 'Rejected'),
     )
+    VEHICLE_TYPE_CHOICES = (
+        ('bike', 'Bike'),
+        ('cycle', 'Cycle'),
+        ('scooter', 'Scooter'),
+        ('other', 'Other'),
+    )
+    AVAILABILITY_CHOICES = (
+        ('available', 'Available'),
+        ('busy', 'Busy'),
+        ('offline', 'Offline'),
+    )
+
     user = models.OneToOneField(User, on_delete=models.CASCADE, related_name='delivery_profile')
-    vehicle_number = models.CharField(max_length=20)
+    photo = models.ImageField(upload_to='profiles/delivery_boys/', blank=True, null=True)
+    vehicle_type = models.CharField(max_length=20, choices=VEHICLE_TYPE_CHOICES, default='bike')
+    vehicle_number = models.CharField(max_length=20, blank=True, default='')
+    emergency_contact = models.CharField(max_length=15, blank=True, default='')
+    availability_status = models.CharField(max_length=20, choices=AVAILABILITY_CHOICES, default='offline')
     verification_status = models.CharField(max_length=20, choices=VERIFICATION_CHOICES, default='pending')
     license_number = models.CharField(max_length=20, blank=True, null=True)
 

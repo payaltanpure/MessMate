@@ -37,8 +37,12 @@ class Order(models.Model):
         ('pending', 'Pending'),
         ('accepted', 'Accepted'),
         ('preparing', 'Preparing'),
-        ('out_for_delivery', 'Out For Delivery'),
+        ('ready_for_pickup', 'Ready for Pickup'),
+        ('assigned', 'Assigned to Delivery Boy'),
+        ('picked_up', 'Picked Up'),
+        ('out_for_delivery', 'Out for Delivery'),
         ('delivered', 'Delivered'),
+        ('completed', 'Completed'),
         ('cancelled', 'Cancelled'),
     )
     student = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.CASCADE, related_name='orders')
@@ -53,6 +57,7 @@ class Order(models.Model):
         on_delete=models.SET_NULL, 
         related_name='assigned_deliveries'
     )
+    assigned_at = models.DateTimeField(null=True, blank=True)
     delivery_otp = models.CharField(max_length=6, blank=True, null=True)
 
     def __str__(self):

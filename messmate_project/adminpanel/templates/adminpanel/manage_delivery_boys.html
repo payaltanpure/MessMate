@@ -1,0 +1,139 @@
+{% extends 'base.html' %}
+
+{% block title %}Manage Delivery Boys - SMARTMESS AI{% endblock %}
+
+{% block content %}
+<div class="container py-4">
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <div>
+            <h1 class="h3 mb-1">Manage Delivery Boys</h1>
+            <p class="text-muted mb-0">Search, review, and manage delivery boy accounts.</p>
+        </div>
+        <a href="{% url 'adminpanel:admin_dashboard' %}" class="btn btn-outline-secondary">Back to Dashboard</a>
+    </div>
+
+    <div class="card glass-card border-0 mb-4">
+        <div class="card-body">
+            <form method="get" class="row g-3 align-items-end">
+                <div class="col-md-6">
+                    <label class="form-label">Search by name, email, vehicle, or license</label>
+                    <input type="text" name="q" class="form-control" value="{{ query }}" placeholder="Enter keyword">
+                </div>
+                <div class="col-md-2">
+                    <label class="form-label">Status</label>
+                    <select name="status" class="form-select">
+                        <option value="" {% if not status %}selected{% endif %}>All</option>
+                        <option value="approved" {% if status == 'approved' %}selected{% endif %}>Approved</option>
+                        <option value="pending" {% if status == 'pending' %}selected{% endif %}>Pending</option>
+                        <option value="rejected" {% if status == 'rejected' %}selected{% endif %}>Rejected</option>
+                    </select>
+                </div>
+                <div class="col-md-2">
+                    <label class="form-label">Availability</label>
+                    <select name="availability" class="form-select">
+                        <option value="" {% if not availability %}selected{% endif %}>All</option>
+                        <option value="available" {% if availability == 'available' %}selected{% endif %}>Available</option>
+                        <option value="busy" {% if availability == 'busy' %}selected{% endif %}>Busy</option>
+                        <option value="offline" {% if availability == 'offline' %}selected{% endif %}>Offline</option>
+                    </select>
+                </div>
+                <div class="col-md-2">
+                    <button type="submit" class="btn btn-gradient w-100">Search</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <div class="card glass-card border-0">
+        <div class="table-responsive">
+            <table class="table table-hover align-middle mb-0">
+                <thead>
+                    <tr>
+                        <th>Name</th>
+                        <th>Email</th>
+                        <th>Phone</th>
+                        <th>Vehicle Type</th>
+                        <th>Approval Status</th>
+                        <th>Availability</th>
+                        <th>Active/Blocked</th>
+                        <th>Actions</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for item in page_obj %}
+                    {% with delivery_boy=item.delivery_boy %}
+                    <tr>
+                        <td>
+                            <div class="fw-bold">{{ delivery_boy.get_full_name|default:delivery_boy.username }}</div>
+                            <div class="small text-secondary">@{{ delivery_boy.username }}</div>
+                        </td>
+                        <td>{{ delivery_boy.email|default:'-' }}</td>
+                        <td>{{ delivery_boy.phone|default:'-' }}</td>
+                        <td>
+                            {% if item.profile %}
+                                {{ item.profile.get_vehicle_type_display|default:'-' }}
+                            {% else %}
+                                -
+                            {% endif %}
+                        </td>
+                        <td>
+                            {% if item.profile.verification_status == 'approved' %}
+                                <span class="badge bg-success-subtle text-success">Approved</span>
+                            {% elif item.profile.verification_status == 'rejected' %}
+                                <span class="badge bg-danger-subtle text-danger">Rejected</span>
+                            {% else %}
+                                <span class="badge bg-warning-subtle text-warning">Pending</span>
+                            {% endif %}
+                        </td>
+                        <td>
+                            {% if item.profile.availability_status == 'available' %}
+                                <span class="badge bg-success-subtle text-success">Available</span>
+                            {% elif item.profile.availability_status == 'busy' %}
+                                <span class="badge bg-warning-subtle text-warning">Busy</span>
+                            {% else %}
+                                <span class="badge bg-secondary-subtle text-secondary">Offline</span>
+                            {% endif %}
+                        </td>
+                        <td>
+                            {% if delivery_boy.is_active %}
+                                <span class="badge bg-success-subtle text-success">Active</span>
+                            {% else %}
+                                <span class="badge bg-danger-subtle text-danger">Blocked</span>
+                            {% endif %}
+                        </td>
+                        <td>
+                            <div class="d-flex gap-2 flex-wrap">
+                                <a href="{% url 'adminpanel:delivery_boy_profile' delivery_boy.id %}" class="btn btn-sm btn-outline-primary">View Profile</a>
+                                {% if item.profile.verification_status != 'approved' %}
+                                    <form method="post" action="{% url 'adminpanel:approve_delivery_boy' delivery_boy.id %}" class="d-inline">
+                                        {% csrf_token %}
+                                        <button type="submit" class="btn btn-sm btn-outline-success">Approve</button>
+                                    </form>
+                                {% endif %}
+                                {% if item.profile.verification_status != 'rejected' %}
+                                    <form method="post" action="{% url 'adminpanel:reject_delivery_boy' delivery_boy.id %}" class="d-inline">
+                                        {% csrf_token %}
+                                        <button type="submit" class="btn btn-sm btn-outline-warning">Reject</button>
+                                    </form>
+                                {% endif %}
+                                <form method="post" action="{% url 'adminpanel:toggle_delivery_boy_status' delivery_boy.id %}" class="d-inline">
+                                    {% csrf_token %}
+                                    <button type="submit" class="btn btn-sm {% if delivery_boy.is_active %}btn-outline-danger{% else %}btn-outline-success{% endif %}">
+                                        {% if delivery_boy.is_active %}Block{% else %}Unblock{% endif %}
+                                    </button>
+                                </form>
+                            </div>
+                        </td>
+                    </tr>
+                    {% endwith %}
+                    {% empty %}
+                    <tr>
+                        <td colspan="8" class="text-center text-muted py-4">No delivery boys found.</td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+{% endblock %}

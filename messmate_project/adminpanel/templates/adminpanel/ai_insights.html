@@ -1,0 +1,163 @@
+{% extends 'base.html' %}
+
+{% block title %}Admin AI Insights - SMARTMESS AI{% endblock %}
+
+{% block content %}
+<div class="container py-4">
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <div>
+            <h1 class="h3 mb-1">Admin AI Insights</h1>
+            <p class="text-muted mb-0">Operational snapshots driven by existing order, complaint, payment, and prediction data.</p>
+        </div>
+        <a href="{% url 'adminpanel:admin_dashboard' %}" class="btn btn-outline-secondary">Back to Dashboard</a>
+    </div>
+
+    {% if insights.summary %}
+    <div class="alert alert-primary shadow-sm mb-4">
+        <i class="bi bi-lightbulb me-2"></i>{{ insights.summary }}
+    </div>
+    {% endif %}
+
+    <div class="row g-4 mb-4">
+        <div class="col-12 col-md-6 col-lg-4">
+            <div class="card border-0 shadow-sm h-100">
+                <div class="card-body">
+                    <h6 class="text-muted">Most Popular Meal</h6>
+                    <h4 class="mb-0">{{ most_popular_meal }}</h4>
+                </div>
+            </div>
+        </div>
+        <div class="col-12 col-md-6 col-lg-4">
+            <div class="card border-0 shadow-sm h-100">
+                <div class="card-body">
+                    <h6 class="text-muted">Least Popular Meal</h6>
+                    <h4 class="mb-0">{{ least_popular_meal }}</h4>
+                </div>
+            </div>
+        </div>
+        <div class="col-12 col-md-6 col-lg-4">
+            <div class="card border-0 shadow-sm h-100">
+                <div class="card-body">
+                    <h6 class="text-muted">Peak Ordering Hour</h6>
+                    <h4 class="mb-0">{{ peak_order_hour }}</h4>
+                </div>
+            </div>
+        </div>
+        <div class="col-12 col-md-6 col-lg-4">
+            <div class="card border-0 shadow-sm h-100">
+                <div class="card-body">
+                    <h6 class="text-muted">Top Vendor</h6>
+                    <h4 class="mb-0">{{ top_vendor }}</h4>
+                </div>
+            </div>
+        </div>
+        <div class="col-12 col-md-6 col-lg-4">
+            <div class="card border-0 shadow-sm h-100">
+                <div class="card-body">
+                    <h6 class="text-muted">Revenue Summary</h6>
+                    <h4 class="mb-0">Rs. {{ revenue_summary }}</h4>
+                </div>
+            </div>
+        </div>
+        <div class="col-12 col-md-6 col-lg-4">
+            <div class="card border-0 shadow-sm h-100">
+                <div class="card-body">
+                    <h6 class="text-muted">Complaint Summary</h6>
+                    <h4 class="mb-0">{{ complaint_summary.total }} total</h4>
+                </div>
+            </div>
+        </div>
+        <div class="col-12 col-md-6 col-lg-4">
+            <div class="card border-0 shadow-sm h-100">
+                <div class="card-body">
+                    <h6 class="text-muted">Predicted Tomorrow's Orders</h6>
+                    <h4 class="mb-0">{{ predicted_tomorrow_orders }}</h4>
+                </div>
+            </div>
+        </div>
+        <div class="col-12 col-md-6 col-lg-4">
+            <div class="card border-0 shadow-sm h-100">
+                <div class="card-body">
+                    <h6 class="text-muted">Predicted Weekly Revenue</h6>
+                    <h4 class="mb-0">Rs. {{ predicted_weekly_revenue }}</h4>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="row g-4 mb-4">
+        <div class="col-12 col-lg-6">
+            <div class="card border-0 shadow-sm h-100">
+                <div class="card-body">
+                    <h5 class="card-title">Complaint Summary</h5>
+                    <canvas id="complaintChart"></canvas>
+                </div>
+            </div>
+        </div>
+        <div class="col-12 col-lg-6">
+            <div class="card border-0 shadow-sm h-100">
+                <div class="card-body">
+                    <h5 class="card-title">High Demand Meals</h5>
+                    <canvas id="demandChart"></canvas>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="row g-4">
+        <div class="col-12 col-lg-6">
+            <div class="card border-0 shadow-sm h-100">
+                <div class="card-body">
+                    <h5 class="card-title">High Demand Meals</h5>
+                    <ul class="list-group list-group-flush">
+                        {% for item in high_demand_meals %}
+                        <li class="list-group-item d-flex justify-content-between">
+                            <span>{{ item.meal_name }}</span>
+                            <span class="badge bg-success-subtle text-success">{{ item.tomorrow }}</span>
+                        </li>
+                        {% empty %}
+                        <li class="list-group-item">No demand data available.</li>
+                        {% endfor %}
+                    </ul>
+                </div>
+            </div>
+        </div>
+        <div class="col-12 col-lg-6">
+            <div class="card border-0 shadow-sm h-100">
+                <div class="card-body">
+                    <h5 class="card-title">Low Demand Meals</h5>
+                    <ul class="list-group list-group-flush">
+                        {% for item in low_demand_meals %}
+                        <li class="list-group-item d-flex justify-content-between">
+                            <span>{{ item.meal_name }}</span>
+                            <span class="badge bg-warning-subtle text-warning">{{ item.tomorrow }}</span>
+                        </li>
+                        {% empty %}
+                        <li class="list-group-item">No demand data available.</li>
+                        {% endfor %}
+                    </ul>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<script>
+    new Chart(document.getElementById('complaintChart'), {
+        type: 'bar',
+        data: {
+            labels: {{ complaint_labels|safe }},
+            datasets: [{ label: 'Complaints', data: {{ complaint_values|safe }}, backgroundColor: ['#ffb703', '#2a9d8f', '#6c757d'] }]
+        }
+    });
+
+    new Chart(document.getElementById('demandChart'), {
+        type: 'bar',
+        data: {
+            labels: {{ demand_labels|safe }},
+            datasets: [{ label: 'Predicted Tomorrow Demand', data: {{ demand_values|safe }}, backgroundColor: '#4f46e5' }]
+        }
+    });
+</script>
+{% endblock %}

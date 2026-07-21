@@ -1,0 +1,338 @@
+{% extends 'base.html' %}
+
+{% block title %}SMARTMESS AI - Delivery Orders{% endblock %}
+
+{% block content %}
+<div class="container py-4">
+    <div class="row g-4">
+        <div class="col-lg-3">
+            <div class="card glass-card border-0 p-3">
+                <h3 class="h6 text-uppercase text-secondary mb-3">Delivery Menu</h3>
+                <div class="d-grid gap-2">
+                    <a href="{% url 'delivery_dashboard' %}" class="btn btn-soft rounded-pill">Dashboard</a>
+                    <a href="{% url 'delivery_profile' %}" class="btn btn-soft rounded-pill">Profile</a>
+                    <a href="{% url 'delivery_orders' %}" class="btn btn-gradient rounded-pill">Orders</a>
+                </div>
+            </div>
+        </div>
+        <div class="col-lg-9">
+            <div class="row g-4">
+                <div class="col-12">
+                    <div class="card glass-card border-0 p-4">
+                        <div class="d-flex justify-content-between align-items-center mb-3">
+                            <h2 class="h5 mb-0"><i class="bi bi-bar-chart-line text-primary me-2"></i>Delivery History & Statistics</h2>
+                            <span class="badge bg-primary-subtle text-primary rounded-pill">Monthly Overview</span>
+                        </div>
+                        <div class="row g-3">
+                            <div class="col-md-3">
+                                <div class="border rounded-3 p-3 h-100 bg-body-tertiary">
+                                    <div class="small text-secondary">Total Deliveries</div>
+                                    <div class="fw-bold fs-4">{{ total_deliveries }}</div>
+                                </div>
+                            </div>
+                            <div class="col-md-3">
+                                <div class="border rounded-3 p-3 h-100 bg-body-tertiary">
+                                    <div class="small text-secondary">Completed This Month</div>
+                                    <div class="fw-bold fs-4">{{ monthly_stats.total_deliveries }}</div>
+                                </div>
+                            </div>
+                            <div class="col-md-3">
+                                <div class="border rounded-3 p-3 h-100 bg-body-tertiary">
+                                    <div class="small text-secondary">Cancelled This Month</div>
+                                    <div class="fw-bold fs-4">{{ monthly_stats.cancelled }}</div>
+                                </div>
+                            </div>
+                            <div class="col-md-3">
+                                <div class="border rounded-3 p-3 h-100 bg-body-tertiary">
+                                    <div class="small text-secondary">Earnings Placeholder</div>
+                                    <div class="fw-bold fs-4">{{ monthly_stats.earnings_placeholder }}</div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Pending Delivery Assignments Section -->
+                <div class="col-lg-12">
+                    <div class="card glass-card border-0 p-4">
+                        <div class="d-flex justify-content-between align-items-center mb-4">
+                            <h2 class="h5 mb-0">
+                                <i class="bi bi-exclamation-circle text-warning me-2"></i>Pending Delivery Assignments
+                            </h2>
+                            <span class="badge bg-warning-subtle text-warning rounded-pill">{{ pending_orders.count }} Pending</span>
+                        </div>
+                        
+                        {% if pending_orders %}
+                            <div class="row g-3">
+                                {% for order in pending_orders %}
+                                <div class="col-md-6">
+                                    <div class="card border border-warning-subtle shadow-sm rounded-3">
+                                        <div class="card-body">
+                                            <!-- Order Header -->
+                                            <div class="d-flex justify-content-between align-items-start mb-3">
+                                                <div>
+                                                    <h6 class="card-title mb-1 fw-bold">Order #{{ order.id }}</h6>
+                                                    <small class="text-muted">{{ order.order_date|date:"d M, h:i A" }}</small>
+                                                </div>
+                                                <span class="badge bg-warning-subtle text-warning">Awaiting Acceptance</span>
+                                            </div>
+                                            
+                                            <hr class="my-3">
+                                            
+                                            <!-- Customer Details -->
+                                            <div class="mb-3">
+                                                <small class="text-uppercase text-secondary fw-bold">Customer Details</small>
+                                                <div class="mt-2">
+                                                    <p class="mb-1">
+                                                        <i class="bi bi-person-circle text-primary me-2"></i>
+                                                        <strong>{{ order.student.first_name|default:order.student.username }}</strong>
+                                                    </p>
+                                                    <p class="mb-1">
+                                                        <i class="bi bi-telephone text-info me-2"></i>
+                                                        {{ order.student.phone|default:"Not provided" }}
+                                                    </p>
+                                                    <p class="mb-0">
+                                                        <i class="bi bi-geo-alt text-success me-2"></i>
+                                                        <small class="text-break">{{ order.student.address|truncatewords:15 }}</small>
+                                                    </p>
+                                                </div>
+                                            </div>
+                                            
+                                            <hr class="my-3">
+                                            
+                                            <!-- Mess Details -->
+                                            <div class="mb-3">
+                                                <small class="text-uppercase text-secondary fw-bold">Mess Details</small>
+                                                <div class="mt-2">
+                                                    <p class="mb-1">
+                                                        <i class="bi bi-shop text-danger me-2"></i>
+                                                        <strong>{{ order.mess.mess_name }}</strong>
+                                                    </p>
+                                                    <p class="mb-1">
+                                                        <i class="bi bi-geo-alt text-danger me-2"></i>
+                                                        <small class="text-break">{{ order.mess.address|truncatewords:15 }}</small>
+                                                    </p>
+                                                    <p class="mb-0">
+                                                        <i class="bi bi-telephone text-danger me-2"></i>
+                                                        {{ order.mess.contact_number }}
+                                                    </p>
+                                                </div>
+                                            </div>
+                                            
+                                            <hr class="my-3">
+                                            
+                                            <!-- Order Amount -->
+                                            <div class="mb-3">
+                                                <div class="d-flex justify-content-between align-items-center bg-light p-2 rounded">
+                                                    <small class="text-secondary">Order Amount:</small>
+                                                    <strong class="text-success fs-5">Rs. {{ order.total_amount }}</strong>
+                                                </div>
+                                            </div>
+                                            
+                                            <!-- Action Buttons -->
+                                            <div class="d-grid gap-2">
+                                                <form method="POST" action="{% url 'accept_delivery_assignment' order.id %}" class="d-inline">
+                                                    {% csrf_token %}
+                                                    <button type="submit" class="btn btn-success w-100 rounded-pill">
+                                                        <i class="bi bi-check-circle me-2"></i>Accept Assignment
+                                                    </button>
+                                                </form>
+                                                <form method="POST" action="{% url 'reject_delivery_assignment' order.id %}" class="d-inline">
+                                                    {% csrf_token %}
+                                                    <button type="submit" class="btn btn-outline-danger w-100 rounded-pill">
+                                                        <i class="bi bi-x-circle me-2"></i>Reject Assignment
+                                                    </button>
+                                                </form>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                                {% endfor %}
+                            </div>
+                        {% else %}
+                            <div class="text-center py-5">
+                                <i class="bi bi-inbox fs-1 text-secondary opacity-50 mb-3"></i>
+                                <p class="text-secondary">No pending delivery assignments.</p>
+                            </div>
+                        {% endif %}
+                    </div>
+                </div>
+
+                <!-- Active Deliveries Section -->
+                <div class="col-lg-6">
+                    <div class="card glass-card border-0 p-4">
+                        <div class="d-flex justify-content-between align-items-center mb-3">
+                            <h2 class="h5 mb-0">
+                                <i class="bi bi-truck text-info me-2"></i>Active Deliveries
+                            </h2>
+                            <span class="badge bg-info-subtle text-info rounded-pill">{{ active_orders.count }}</span>
+                        </div>
+                        {% if active_orders %}
+                            <div class="list-group">
+                                {% for order in active_orders %}
+                                    <div class="list-group-item rounded-3 mb-2 border-0 shadow-sm">
+                                        <div class="d-flex justify-content-between align-items-start">
+                                            <div>
+                                                <h6 class="mb-1 fw-bold">Order #{{ order.id }}</h6>
+                                                <p class="mb-1 text-secondary">
+                                                    <small><i class="bi bi-shop me-1"></i>{{ order.mess.mess_name }}</small>
+                                                </p>
+                                                <p class="mb-0 text-secondary">
+                                                    <small><i class="bi bi-person me-1"></i>{{ order.student.first_name|default:order.student.username }}</small>
+                                                </p>
+                                            </div>
+                                            <div class="text-end">
+                                                <p class="mb-1 fw-bold text-success">Rs. {{ order.total_amount }}</p>
+                                                <span class="badge 
+                                                    {% if order.status == 'out_for_delivery' %}bg-info-subtle text-info
+                                                    {% elif order.status == 'picked_up' %}bg-primary-subtle text-primary
+                                                    {% else %}bg-warning-subtle text-warning{% endif %} px-2 py-1 rounded-pill">
+                                                    {{ order.get_status_display }}
+                                                </span>
+                                                <div class="mt-2 d-flex flex-wrap gap-2 justify-content-end">
+                                                    <a href="{% url 'route_tracking' order.id %}" class="btn btn-sm btn-outline-primary rounded-pill">
+                                                        <i class="bi bi-map me-1"></i>Track
+                                                    </a>
+                                                    {% if order.status == 'assigned' %}
+                                                        <form method="POST" action="{% url 'update_delivery_status' order.id 'picked_up' %}">
+                                                            {% csrf_token %}
+                                                            <button type="submit" class="btn btn-sm btn-outline-success rounded-pill">Picked Up</button>
+                                                        </form>
+                                                    {% elif order.status == 'picked_up' %}
+                                                        <form method="POST" action="{% url 'update_delivery_status' order.id 'out_for_delivery' %}">
+                                                            {% csrf_token %}
+                                                            <button type="submit" class="btn btn-sm btn-outline-info rounded-pill">Out for Delivery</button>
+                                                        </form>
+                                                    {% elif order.status == 'out_for_delivery' %}
+                                                        <form method="POST" action="{% url 'update_delivery_status' order.id 'delivered' %}">
+                                                            {% csrf_token %}
+                                                            <button type="submit" class="btn btn-sm btn-outline-success rounded-pill">Delivered</button>
+                                                        </form>
+                                                    {% endif %}
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </div>
+                                {% endfor %}
+                            </div>
+                        {% else %}
+                            <div class="text-center py-4">
+                                <i class="bi bi-inbox fs-1 text-secondary opacity-50 mb-2"></i>
+                                <p class="text-secondary small">No active deliveries.</p>
+                            </div>
+                        {% endif %}
+                    </div>
+                </div>
+
+                <!-- Completed Deliveries Section -->
+                <div class="col-lg-6">
+                    <div class="card glass-card border-0 p-4">
+                        <div class="d-flex justify-content-between align-items-center mb-3">
+                            <h2 class="h5 mb-0"><i class="bi bi-check-circle text-success me-2"></i>Completed Deliveries</h2>
+                            <span class="badge bg-success-subtle text-success rounded-pill">{{ completed_orders.count }}</span>
+                        </div>
+                        {% if completed_orders %}
+                            <div class="list-group">
+                                {% for order in completed_orders %}
+                                    <div class="list-group-item rounded-3 mb-2 border-0 shadow-sm">
+                                        <div class="d-flex justify-content-between align-items-center">
+                                            <div>
+                                                <h6 class="mb-1">Order #{{ order.id }}</h6>
+                                                <p class="mb-0 text-secondary"><small>{{ order.mess.mess_name }} · {{ order.order_date|date:"d M" }}</small></p>
+                                            </div>
+                                            <span class="badge bg-success-subtle text-success rounded-pill">Delivered</span>
+                                        </div>
+                                    </div>
+                                {% endfor %}
+                            </div>
+                        {% else %}
+                            <div class="text-center py-4"><p class="text-secondary small">No completed deliveries yet.</p></div>
+                        {% endif %}
+                    </div>
+                </div>
+
+                <!-- Cancelled Deliveries Section -->
+                <div class="col-lg-6">
+                    <div class="card glass-card border-0 p-4">
+                        <div class="d-flex justify-content-between align-items-center mb-3">
+                            <h2 class="h5 mb-0"><i class="bi bi-x-circle text-danger me-2"></i>Cancelled Deliveries</h2>
+                            <span class="badge bg-danger-subtle text-danger rounded-pill">{{ cancelled_orders.count }}</span>
+                        </div>
+                        {% if cancelled_orders %}
+                            <div class="list-group">
+                                {% for order in cancelled_orders %}
+                                    <div class="list-group-item rounded-3 mb-2 border-0 shadow-sm">
+                                        <div class="d-flex justify-content-between align-items-center">
+                                            <div>
+                                                <h6 class="mb-1">Order #{{ order.id }}</h6>
+                                                <p class="mb-0 text-secondary"><small>{{ order.mess.mess_name }} · {{ order.order_date|date:"d M" }}</small></p>
+                                            </div>
+                                            <span class="badge bg-danger-subtle text-danger rounded-pill">Cancelled</span>
+                                        </div>
+                                    </div>
+                                {% endfor %}
+                            </div>
+                        {% else %}
+                            <div class="text-center py-4"><p class="text-secondary small">No cancelled deliveries.</p></div>
+                        {% endif %}
+                    </div>
+                </div>
+
+                <!-- Pending Deliveries Section -->
+                <div class="col-lg-6">
+                    <div class="card glass-card border-0 p-4">
+                        <div class="d-flex justify-content-between align-items-center mb-3">
+                            <h2 class="h5 mb-0"><i class="bi bi-hourglass-split text-warning me-2"></i>Pending Deliveries</h2>
+                            <span class="badge bg-warning-subtle text-warning rounded-pill">{{ pending_orders.count }}</span>
+                        </div>
+                        {% if pending_orders %}
+                            <div class="list-group">
+                                {% for order in pending_orders %}
+                                    <div class="list-group-item rounded-3 mb-2 border-0 shadow-sm">
+                                        <div class="d-flex justify-content-between align-items-center">
+                                            <div>
+                                                <h6 class="mb-1">Order #{{ order.id }}</h6>
+                                                <p class="mb-0 text-secondary"><small>{{ order.mess.mess_name }} · {{ order.order_date|date:"d M" }}</small></p>
+                                            </div>
+                                            <span class="badge bg-warning-subtle text-warning rounded-pill">Pending</span>
+                                        </div>
+                                    </div>
+                                {% endfor %}
+                            </div>
+                        {% else %}
+                            <div class="text-center py-4"><p class="text-secondary small">No pending deliveries.</p></div>
+                        {% endif %}
+                    </div>
+                </div>
+
+                <!-- Delivery History Section -->
+                <div class="col-lg-6">
+                    <div class="card glass-card border-0 p-4">
+                        <div class="d-flex justify-content-between align-items-center mb-3">
+                            <h2 class="h5 mb-0"><i class="bi bi-clock-history text-secondary me-2"></i>Recent Delivery History</h2>
+                            <span class="badge bg-secondary-subtle text-secondary rounded-pill">{{ order_history.count }}</span>
+                        </div>
+                        {% if order_history %}
+                            <div class="list-group">
+                                {% for order in order_history %}
+                                    <div class="list-group-item rounded-3 mb-2 border-0 shadow-sm">
+                                        <div class="d-flex justify-content-between align-items-center">
+                                            <div>
+                                                <h6 class="mb-1">Order #{{ order.id }}</h6>
+                                                <p class="mb-0 text-secondary"><small>{{ order.mess.mess_name }} · {{ order.order_date|date:"d M" }}</small></p>
+                                            </div>
+                                            <span class="badge {% if order.status == 'delivered' %}bg-success-subtle text-success{% else %}bg-danger-subtle text-danger{% endif %} rounded-pill">{{ order.get_status_display }}</span>
+                                        </div>
+                                    </div>
+                                {% endfor %}
+                            </div>
+                        {% else %}
+                            <div class="text-center py-4"><p class="text-secondary small">No delivery history yet.</p></div>
+                        {% endif %}
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

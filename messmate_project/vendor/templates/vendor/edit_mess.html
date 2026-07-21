@@ -38,6 +38,20 @@
                             <input type="text" name="location_name" value="{{ mess.location_name }}" class="form-control rounded-3 bg-body-tertiary">
                         </div>
 
+                        <div class="col-12">
+                            <label class="form-label small fw-bold">Pick Location</label>
+                            <div class="border rounded-4 p-3 bg-body-tertiary">
+                                <div id="map-picker" style="height: 280px; border-radius: 16px; background: linear-gradient(135deg, #f8fafc, #e2e8f0); display: flex; align-items: center; justify-content: center; text-align: center; color: #64748b;">
+                                    <div>
+                                        <i class="bi bi-map fs-3 d-block mb-2"></i>
+                                        <div>{% if maps_config.enabled %}Click the map to choose a location.{% else %}{{ maps_config.placeholder_message }}{% endif %}</div>
+                                    </div>
+                                </div>
+                                <input type="hidden" name="latitude" id="latitude" value="{{ mess.latitude|default:'' }}">
+                                <input type="hidden" name="longitude" id="longitude" value="{{ mess.longitude|default:'' }}">
+                            </div>
+                        </div>
+
                         <!-- Diet & Distance -->
                         <div class="col-md-6">
                             <label class="form-label small fw-bold">Diet Type</label>
@@ -104,4 +118,50 @@
         </div>
     </div>
 </div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+    document.addEventListener('DOMContentLoaded', function () {
+        const mapContainer = document.getElementById('map-picker');
+        const latitudeInput = document.getElementById('latitude');
+        const longitudeInput = document.getElementById('longitude');
+        if (!mapContainer || !latitudeInput || !longitudeInput) return;
+
+        const apiKey = '{{ google_maps_api_key|default:"" }}';
+        if (!apiKey) {
+            mapContainer.innerHTML = '<div class="h-100 d-flex align-items-center justify-content-center text-secondary"><div><i class="bi bi-map fs-3 d-block mb-2"></i><div>{{ maps_config.placeholder_message }}</div></div></div>';
+            return;
+        }
+
+        const initialCenter = {
+            lat: parseFloat(latitudeInput.value || '{{ mess_map_data.latitude }}'),
+            lng: parseFloat(longitudeInput.value || '{{ mess_map_data.longitude }}')
+        };
+        const map = new google.maps.Map(mapContainer, {
+            zoom: 13,
+            center: initialCenter,
+            mapTypeControl: false,
+            streetViewControl: false
+        });
+        const marker = new google.maps.Marker({
+            map,
+            position: initialCenter,
+            draggable: true
+        });
+
+        map.addListener('click', function (event) {
+            marker.setPosition(event.latLng);
+            latitudeInput.value = event.latLng.lat().toFixed(6);
+            longitudeInput.value = event.latLng.lng().toFixed(6);
+        });
+
+        marker.addListener('dragend', function () {
+            const position = marker.getPosition();
+            latitudeInput.value = position.lat().toFixed(6);
+            longitudeInput.value = position.lng().toFixed(6);
+        });
+    });
+</script>
+<script async defer src="https://maps.googleapis.com/maps/api/js?key={{ google_maps_api_key }}"></script>
 {% endblock %}

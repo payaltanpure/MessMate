@@ -3,12 +3,17 @@ import os
 from django.shortcuts import render, redirect, get_object_or_404
 from django.contrib import messages
 from django.db.models import Q, Sum, Count
+from django.conf import settings
 
-from accounts.models import VendorProfile
+from accounts.models import VendorProfile, DeliveryBoyProfile, User
 from vendor.models import Mess, Meal
 from student.models import Order, Subscription, Review, Complaint, Payment
-from core.ai_services import forecast_demand, predict_food_waste
+from core.ai_services import forecast_demand, predict_food_waste, get_ai_insights, get_recommended_meals
+from core.maps_service import get_maps_config, get_mess_map_data
 from core.decorators import vendor_required
+from core.email_services import send_vendor_notification
+from core.weather_service import get_weather, get_weather_impact
+from core.delivery_views import assign_order_to_delivery_boy, can_reassign_delivery, set_delivery_boy_availability, transition_order_status
 
 
 @vendor_required
@@ -24,6 +29,12 @@ def vendor_dashboard(request):
     # Base counts
     active_subs_count = Subscription.objects.filter(mess__in=messes, status='active').count()
     total_orders_count = Order.objects.filter(mess__in=messes).count()
+    pending_orders_count = Order.objects.filter(mess__in=messes, status='pending').count()
+    preparing_orders_count = Order.objects.filter(mess__in=messes, status='preparing').count()
+    ready_for_pickup_count = Order.objects.filter(mess__in=messes, status='ready_for_pickup').count()
+    assigned_orders_count = Order.objects.filter(mess__in=messes, status='assigned').count()
+    delivered_orders_count = Order.objects.filter(mess__in=messes, status__in=['delivered', 'completed']).count()
+    cancelled_orders_count = Order.objects.filter(mess__in=messes, status='cancelled').count()
 
     # Revenue calculations from payments (both orders and subscriptions)
     order_rev = Payment.objects.filter(order__mess__in=messes, status='success').aggregate(Sum('amount'))['amount__sum'] or 0.00
@@ -43,6 +54,39 @@ def vendor_dashboard(request):
         forecast = forecast_demand(first_mess.id)
         waste = predict_food_waste(first_mess.id)
 
+    # Recommendation insights
+    all_vendor_meals = Meal.objects.filter(mess__in=messes).select_related('mess')
+    recommendation_stats = []
+    meal_recommendation_counts = {}
+
+    for meal in all_vendor_meals:
+        meal_recommendation_counts[meal.id] = 0
+
+    for user in request.user.__class__.objects.filter(role='student'):
+        try:
+            for meal in get_recommended_meals(user):
+                if meal.id in meal_recommendation_counts:
+                    meal_recommendation_counts[meal.id] += 1
+        except Exception:
+            continue
+
+    recommendation_meals = []
+    for meal in all_vendor_meals:
+        recommendation_meals.append({
+            'meal': meal,
+            'score': meal_recommendation_counts.get(meal.id, 0),
+        })
+
+    recommendation_meals.sort(key=lambda item: item['score'], reverse=True)
+    most_recommended = recommendation_meals[:3]
+    least_recommended = list(reversed(recommendation_meals[-3:])) if len(recommendation_meals) >= 3 else recommendation_meals[:3]
+    recommendation_stats = {
+        'total_meals': len(recommendation_meals),
+        'top_score': most_recommended[0]['score'] if most_recommended else 0,
+        'lowest_score': least_recommended[-1]['score'] if least_recommended else 0,
+        'avg_score': round(sum(item['score'] for item in recommendation_meals) / len(recommendation_meals), 2) if recommendation_meals else 0,
+    }
+
     # Review Sentiment Metrics
     reviews = Review.objects.filter(mess__in=messes)
     sentiment_stats = reviews.values('sentiment').annotate(count=Count('id'))
@@ -52,18 +96,33 @@ def vendor_dashboard(request):
 
     # Total complaints
     complaints = Complaint.objects.filter(mess__in=messes).order_by('-created_at')[:5]
+    weather = get_weather('Bengaluru')
+    weather_impact = get_weather_impact('Bengaluru')
+    insights = get_ai_insights('vendor', request.user)
 
     context = {
         'messes': messes,
         'active_subs_count': active_subs_count,
         'total_orders_count': total_orders_count,
+        'pending_orders_count': pending_orders_count,
+        'preparing_orders_count': preparing_orders_count,
+        'ready_for_pickup_count': ready_for_pickup_count,
+        'assigned_orders_count': assigned_orders_count,
+        'delivered_orders_count': delivered_orders_count,
+        'cancelled_orders_count': cancelled_orders_count,
         'total_revenue': total_revenue,
         'popular_meals': popular_meals,
         'forecast': forecast,
         'waste': waste,
+        'most_recommended': most_recommended,
+        'least_recommended': least_recommended,
+        'recommendation_stats': recommendation_stats,
         'sentiment': sentiment_dict,
         'complaints': complaints,
-        'first_mess': first_mess
+        'first_mess': first_mess,
+        'weather': weather,
+        'weather_impact': weather_impact,
+        'insights': insights,
     }
     return render(request, 'vendor/dashboard.html', context)
 
@@ -77,6 +136,8 @@ def add_mess(request):
         description = request.POST.get('description')
         diet_type = request.POST.get('diet_type')
         location_name = request.POST.get('location_name')
+        latitude = request.POST.get('latitude') or None
+        longitude = request.POST.get('longitude') or None
         distance = request.POST.get('distance', 1.0)
         
         monthly_price_lunch = request.POST.get('monthly_price_lunch', 0.00)
@@ -96,6 +157,8 @@ def add_mess(request):
             description=description,
             diet_type=diet_type,
             location_name=location_name,
+            latitude=float(latitude) if latitude not in [None, ''] else None,
+            longitude=float(longitude) if longitude not in [None, ''] else None,
             distance=float(distance or 1.0),
             monthly_price_lunch=float(monthly_price_lunch or 0.00),
             monthly_price_dinner=float(monthly_price_dinner or 0.00),
@@ -106,7 +169,7 @@ def add_mess(request):
         messages.success(request, "Mess created successfully!")
         return redirect('manage_mess')
 
-    return render(request, 'vendor/add_mess.html')
+    return render(request, 'vendor/add_mess.html', {'google_maps_api_key': get_maps_config()['api_key'], 'maps_config': get_maps_config()})
 
 
 @vendor_required
@@ -125,6 +188,8 @@ def edit_mess(request, mess_id):
         mess.description = request.POST.get('description')
         mess.diet_type = request.POST.get('diet_type')
         mess.location_name = request.POST.get('location_name')
+        mess.latitude = float(request.POST.get('latitude')) if request.POST.get('latitude') not in [None, ''] else None
+        mess.longitude = float(request.POST.get('longitude')) if request.POST.get('longitude') not in [None, ''] else None
         mess.distance = float(request.POST.get('distance') or 1.0)
         mess.monthly_price_lunch = float(request.POST.get('monthly_price_lunch') or 0.0)
         mess.monthly_price_dinner = float(request.POST.get('monthly_price_dinner') or 0.0)
@@ -134,7 +199,12 @@ def edit_mess(request, mess_id):
         messages.success(request, "Mess updated successfully!")
         return redirect('manage_mess')
         
-    return render(request, 'vendor/edit_mess.html', {'mess': mess})
+    return render(request, 'vendor/edit_mess.html', {
+        'mess': mess,
+        'google_maps_api_key': get_maps_config()['api_key'],
+        'maps_config': get_maps_config(),
+        'mess_map_data': get_mess_map_data(mess),
+    })
 
 
 @vendor_required
@@ -212,7 +282,12 @@ def delete_meal(request, meal_id):
 @vendor_required
 def orders(request):
     messes = Mess.objects.filter(vendor=request.user)
-    vendor_orders = Order.objects.filter(mess__in=messes).order_by('-order_date')
+    vendor_orders = (
+        Order.objects.filter(mess__in=messes)
+        .select_related('student', 'mess')
+        .prefetch_related('items__meal')
+        .order_by('-order_date')
+    )
     return render(request, 'vendor/orders.html', {'orders': vendor_orders})
 
 
@@ -223,12 +298,75 @@ def update_order_status(request, order_id):
         new_status = request.POST.get('status')
         allowed_statuses = [choice[0] for choice in Order.STATUS_CHOICES]
         if new_status in allowed_statuses:
-            order.status = new_status
-            order.save()
-            messages.success(request, f"Order #{order.id} status updated to {new_status.replace('_', ' ').title()}.")
+            try:
+                transition_order_status(order, new_status)
+                messages.success(request, f"Order #{order.id} status updated to {new_status.replace('_', ' ').title()}.")
+            except ValueError as exc:
+                messages.error(str(exc))
         else:
             messages.error(request, "Invalid order status.")
     return redirect('vendor_orders')
+
+
+@vendor_required
+def assign_delivery_boy(request, order_id):
+    """Assign an active delivery boy to an order when it is ready for pickup."""
+    order = get_object_or_404(Order, id=order_id, mess__vendor=request.user)
+
+    if order.status not in ['ready_for_pickup', 'assigned']:
+        messages.error(request, 'Delivery boys can only be assigned once the order is ready for pickup.')
+        return redirect('vendor_orders')
+
+    if not can_reassign_delivery(order):
+        messages.error(request, 'Delivery assignment can only be changed before the delivery boy picks up the order.')
+        return redirect('vendor_orders')
+
+    if request.method == 'POST':
+        delivery_boy_id = request.POST.get('delivery_boy')
+
+        if not delivery_boy_id:
+            messages.error(request, 'Please select a Delivery Boy.')
+            return redirect('vendor_orders')
+
+        try:
+            delivery_boy = User.objects.get(
+                id=delivery_boy_id,
+                role='delivery',
+                is_active=True,
+            )
+        except User.DoesNotExist:
+            messages.error(request, 'Only active delivery boys can be assigned.')
+            return redirect('vendor_orders')
+
+        DeliveryBoyProfile.objects.get_or_create(
+            user=delivery_boy,
+            defaults={'availability_status': 'available'}
+        )
+
+        if order.delivery_boy_id == delivery_boy.id and order.status == 'assigned':
+            messages.info(request, 'This delivery boy is already assigned to the order.')
+            return redirect('vendor_orders')
+
+        assign_order_to_delivery_boy(order, delivery_boy, status='assigned')
+        messages.success(request, f'Delivery Boy {delivery_boy.first_name or delivery_boy.username} assigned to Order #{order.id}.')
+        return redirect('vendor_orders')
+
+    active_delivery_boys = User.objects.filter(
+        role='delivery',
+        is_active=True,
+    ).select_related('delivery_profile').order_by('username')
+
+    for delivery_boy in active_delivery_boys:
+        DeliveryBoyProfile.objects.get_or_create(
+            user=delivery_boy,
+            defaults={'availability_status': 'available'}
+        )
+
+    context = {
+        'order': order,
+        'delivery_boys': active_delivery_boys,
+    }
+    return render(request, 'vendor/assign_delivery_boy.html', context)
 
 
 @vendor_required
@@ -285,6 +423,14 @@ def respond_complaint(request, complaint_id):
         complaint.response = response
         complaint.status = 'resolved'
         complaint.save()
+        if complaint.student and complaint.student.email:
+            send_vendor_notification(
+                complaint.student.username,
+                complaint.student.email,
+                f'Complaint #{complaint.id} update',
+                f'Your complaint has been responded to by the vendor.\nResponse: {response}',
+                category='vendor_complaint',
+            )
         messages.success(request, f"Complaint #{complaint.id} marked as RESOLVED with response.")
     return redirect('vendor_dashboard')
 

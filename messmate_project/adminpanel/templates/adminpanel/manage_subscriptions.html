@@ -1,0 +1,101 @@
+{% extends 'base.html' %}
+
+{% block title %}Manage Subscriptions - SMARTMESS AI{% endblock %}
+
+{% block content %}
+<div class="container py-4">
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <div>
+            <h1 class="h3 mb-1">Manage Subscriptions</h1>
+            <p class="text-muted mb-0">Search, filter, and manage student subscriptions.</p>
+        </div>
+        <a href="{% url 'adminpanel:admin_dashboard' %}" class="btn btn-outline-secondary">Back to Dashboard</a>
+    </div>
+
+    <div class="card glass-card border-0 mb-4">
+        <div class="card-body">
+            <form method="get" class="row g-3 align-items-end">
+                <div class="col-md-4">
+                    <label class="form-label">Search</label>
+                    <input type="text" name="q" class="form-control" value="{{ query }}" placeholder="Student, mess, or subscription ID">
+                </div>
+                <div class="col-md-3">
+                    <label class="form-label">Status</label>
+                    <select name="status" class="form-select">
+                        <option value="" {% if not status %}selected{% endif %}>All</option>
+                        {% for value, label in status_choices %}
+                            <option value="{{ value }}" {% if status == value %}selected{% endif %}>{{ label }}</option>
+                        {% endfor %}
+                    </select>
+                </div>
+                <div class="col-md-2">
+                    <button type="submit" class="btn btn-gradient w-100">Filter</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <div class="card glass-card border-0">
+        <div class="table-responsive">
+            <table class="table table-hover align-middle mb-0">
+                <thead>
+                    <tr>
+                        <th>Subscription ID</th>
+                        <th>Student</th>
+                        <th>Mess</th>
+                        <th>Plan</th>
+                        <th>Start Date</th>
+                        <th>End Date</th>
+                        <th>Status</th>
+                        <th>Payment Status</th>
+                        <th>Amount</th>
+                        <th>Actions</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for subscription in page_obj %}
+                    <tr>
+                        <td>#{{ subscription.id }}</td>
+                        <td>{{ subscription.student.get_full_name|default:subscription.student.username }}</td>
+                        <td>{{ subscription.mess.mess_name }}</td>
+                        <td>{{ subscription.get_plan_type_display }}</td>
+                        <td>{{ subscription.start_date }}</td>
+                        <td>{{ subscription.end_date }}</td>
+                        <td>{{ subscription.get_status_display }}</td>
+                        <td>{{ subscription.payment_status|default:'N/A' }}</td>
+                        <td>Rs. {{ subscription.payment_amount|default:subscription.price_paid }}</td>
+                        <td>
+                            <a href="{% url 'adminpanel:subscription_detail' subscription.id %}" class="btn btn-sm btn-outline-primary">View</a>
+                        </td>
+                    </tr>
+                    {% empty %}
+                    <tr>
+                        <td colspan="10" class="text-center text-muted py-4">No subscriptions found.</td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+
+    {% if page_obj.paginator.num_pages > 1 %}
+    <nav class="mt-4">
+        <ul class="pagination justify-content-center">
+            {% if page_obj.has_previous %}
+                <li class="page-item"><a class="page-link" href="?page={{ page_obj.previous_page_number }}{% if query %}&q={{ query }}{% endif %}{% if status %}&status={{ status }}{% endif %}">Previous</a></li>
+            {% endif %}
+            {% for num in page_obj.paginator.page_range %}
+                {% if page_obj.number == num %}
+                    <li class="page-item active"><span class="page-link">{{ num }}</span></li>
+                {% else %}
+                    <li class="page-item"><a class="page-link" href="?page={{ num }}{% if query %}&q={{ query }}{% endif %}{% if status %}&status={{ status }}{% endif %}">{{ num }}</a></li>
+                {% endif %}
+            {% endfor %}
+            {% if page_obj.has_next %}
+                <li class="page-item"><a class="page-link" href="?page={{ page_obj.next_page_number }}{% if query %}&q={{ query }}{% endif %}{% if status %}&status={{ status }}{% endif %}">Next</a></li>
+            {% endif %}
+        </ul>
+    </nav>
+    {% endif %}
+</div>
+{% endblock %}

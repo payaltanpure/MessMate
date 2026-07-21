@@ -1,0 +1,89 @@
+{% extends 'base.html' %}
+
+{% block title %}SMARTMESS AI - Delivery Profile{% endblock %}
+
+{% block content %}
+<div class="container py-4">
+    <div class="row g-4">
+        <div class="col-lg-3">
+            <div class="card glass-card border-0 p-3">
+                <h3 class="h6 text-uppercase text-secondary mb-3">Delivery Menu</h3>
+                <div class="d-grid gap-2">
+                    <a href="{% url 'delivery_dashboard' %}" class="btn btn-soft rounded-pill">Dashboard</a>
+                    <a href="{% url 'delivery_profile' %}" class="btn btn-gradient rounded-pill">Profile</a>
+                    <a href="{% url 'delivery_orders' %}" class="btn btn-soft rounded-pill">Orders</a>
+                </div>
+            </div>
+        </div>
+        <div class="col-lg-9">
+            <div class="card glass-card border-0 p-4">
+                <div class="d-flex align-items-center gap-3 mb-4">
+                    <div class="icon-badge"><i class="bi bi-person-badge"></i></div>
+                    <div>
+                        <h2 class="h4 mb-1">Delivery Boy Profile</h2>
+                        <p class="text-secondary mb-0">{{ request.user.username }}</p>
+                    </div>
+                </div>
+
+                <form method="post" enctype="multipart/form-data">
+                    {% csrf_token %}
+                    <div class="row g-3">
+                        <div class="col-md-6">
+                            <label class="form-label text-secondary">Username</label>
+                            <div class="form-control bg-transparent">{{ request.user.username }}</div>
+                        </div>
+                        <div class="col-md-6">
+                            <label class="form-label text-secondary">Email</label>
+                            <div class="form-control bg-transparent">{{ request.user.email|default:'Not provided' }}</div>
+                        </div>
+                        <div class="col-md-6">
+                            <label class="form-label text-secondary" for="phone">Phone Number</label>
+                            <input type="text" id="phone" name="phone" class="form-control" value="{{ request.user.phone|default:'' }}" placeholder="Enter phone number">
+                        </div>
+                        <div class="col-md-6">
+                            <label class="form-label text-secondary" for="emergency_contact">Emergency Contact</label>
+                            <input type="text" id="emergency_contact" name="emergency_contact" class="form-control" value="{{ profile.emergency_contact|default:'' }}" placeholder="Emergency contact">
+                        </div>
+                        <div class="col-md-6">
+                            <label class="form-label text-secondary" for="vehicle_type">Vehicle Type</label>
+                            <select id="vehicle_type" name="vehicle_type" class="form-select">
+                                <option value="bike" {% if profile.vehicle_type == 'bike' %}selected{% endif %}>Bike</option>
+                                <option value="cycle" {% if profile.vehicle_type == 'cycle' %}selected{% endif %}>Cycle</option>
+                                <option value="scooter" {% if profile.vehicle_type == 'scooter' %}selected{% endif %}>Scooter</option>
+                                <option value="other" {% if profile.vehicle_type == 'other' %}selected{% endif %}>Other</option>
+                            </select>
+                        </div>
+                        <div class="col-md-6">
+                            <label class="form-label text-secondary" for="vehicle_number">Vehicle Number</label>
+                            <input type="text" id="vehicle_number" name="vehicle_number" class="form-control" value="{{ profile.vehicle_number|default:'' }}" placeholder="Vehicle number">
+                        </div>
+                        <div class="col-md-6">
+                            <label class="form-label text-secondary" for="availability_status">Availability Status</label>
+                            <select id="availability_status" name="availability_status" class="form-select">
+                                <option value="available" {% if profile.availability_status == 'available' %}selected{% endif %}>Available</option>
+                                <option value="busy" {% if profile.availability_status == 'busy' %}selected{% endif %}>Busy</option>
+                                <option value="offline" {% if profile.availability_status == 'offline' %}selected{% endif %}>Offline</option>
+                            </select>
+                        </div>
+                        <div class="col-md-6">
+                            <label class="form-label text-secondary" for="photo">Profile Photo</label>
+                            <input type="file" id="photo" name="photo" class="form-control" accept="image/*">
+                            {% if profile.photo %}
+                                <div class="small text-secondary mt-2">Current photo uploaded.</div>
+                            {% endif %}
+                        </div>
+                        <div class="col-12">
+                            <label class="form-label text-secondary">Verification Status</label>
+                            <div class="form-control bg-transparent">{{ profile.get_verification_status_display }}</div>
+                        </div>
+                    </div>
+                    <div class="mt-4 d-flex gap-2">
+                        <button type="submit" class="btn btn-gradient rounded-pill">Save Profile</button>
+                        <a href="{% url 'delivery_dashboard' %}" class="btn btn-outline-secondary rounded-pill">Back to Dashboard</a>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

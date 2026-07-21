@@ -4,10 +4,9 @@
 
 {% block content %}
 <div class="container py-4">
-    <!-- Header Greeting -->
-    <div class="row align-items-center mb-5">
-        <div class="col-md-8 d-flex align-items-center gap-4">
-            <div class="bg-primary-subtle text-primary rounded-circle border border-primary shadow d-flex align-items-center justify-content-center" style="width: 80px; height: 80px;">
+    <div class="row align-items-center mb-4 mb-md-5">
+        <div class="col-md-8 d-flex align-items-center gap-3 gap-md-4">
+            <div class="bg-primary-subtle text-primary rounded-circle border border-primary shadow d-flex align-items-center justify-content-center" style="width: 84px; height: 84px;">
                 <i class="bi bi-shop fs-2"></i>
             </div>
             <div>
@@ -15,8 +14,8 @@
                 <p class="text-secondary mb-0">Manage your messes, meals, and orders from here.</p>
             </div>
         </div>
-        <div class="col-md-4 text-md-end mt-3 mt-md-0">
-            <a href="{% url 'vendor_profile' %}" class="btn btn-outline-secondary rounded-pill btn-sm me-2"><i class="bi bi-person-badge me-1"></i>Business Profile</a>
+        <div class="col-md-4 text-md-end mt-3 mt-md-0 dashboard-actions">
+            <a href="{% url 'vendor_profile' %}" class="btn btn-soft rounded-pill btn-sm me-2 mb-2 mb-md-0"><i class="bi bi-person-badge me-1"></i>Business Profile</a>
             <a href="{% url 'add_mess' %}" class="btn btn-gradient rounded-pill btn-sm"><i class="bi bi-plus-circle me-1"></i>Add New Mess</a>
         </div>
     </div>
@@ -24,35 +23,76 @@
     <div class="row g-4">
         <!-- Main Stats Panel -->
         <div class="col-lg-12">
-            <div class="card glass-card p-4 border-0 mb-4">
-                <h2 class="h5 mb-4"><i class="bi bi-graph-up-arrow gradient-text me-2"></i>Quick Overview</h2>
+            <div class="card glass-card p-4 border-0 mb-4 section-card">
+                <div class="d-flex align-items-center justify-content-between mb-4">
+                    <h2 class="h5 mb-0"><i class="bi bi-graph-up-arrow gradient-text me-2"></i>Quick Overview</h2>
+                    <span class="loading-state"><span class="loading-dot"></span>Updated</span>
+                </div>
                 <div class="row text-center">
                     <div class="col-md-3 mb-3">
-                        <div class="p-4 bg-body-tertiary rounded-4 border">
+                        <div class="p-4 bg-body-tertiary rounded-4 border position-relative h-100">
                             <i class="bi bi-shop fs-1 text-primary mb-2 d-block"></i>
                             <h3 class="fw-bold mb-0">{{ messes.count }}</h3>
-                            <a href="{% url 'manage_mess' %}" class="stretched-link text-decoration-none text-secondary">Your Messes</a>
+                            <a href="{% url 'manage_mess' %}" class="stretched-link text-decoration-none text-secondary d-block">Your Messes</a>
                         </div>
                     </div>
                     <div class="col-md-3 mb-3">
-                        <div class="p-4 bg-body-tertiary rounded-4 border">
+                        <div class="p-4 bg-body-tertiary rounded-4 border position-relative h-100">
                             <i class="bi bi-journal-text fs-1 text-success mb-2 d-block"></i>
                             <h3 class="fw-bold mb-0">{{ total_orders_count }}</h3>
-                            <a href="{% url 'vendor_orders' %}" class="stretched-link text-decoration-none text-secondary">View Orders</a>
+                            <a href="{% url 'vendor_orders' %}" class="stretched-link text-decoration-none text-secondary d-block">View Orders</a>
                         </div>
                     </div>
                     <div class="col-md-3 mb-3">
-                        <div class="p-4 bg-body-tertiary rounded-4 border">
+                        <div class="p-4 bg-body-tertiary rounded-4 border position-relative h-100">
                             <i class="bi bi-cash-stack fs-1 text-warning mb-2 d-block"></i>
                             <h3 class="fw-bold mb-0">₹{{ total_revenue }}</h3>
-                            <a href="{% url 'vendor_earnings' %}" class="stretched-link text-decoration-none text-secondary">Revenue</a>
+                            <a href="{% url 'vendor_earnings' %}" class="stretched-link text-decoration-none text-secondary d-block">Revenue</a>
                         </div>
                     </div>
                     <div class="col-md-3 mb-3">
-                        <div class="p-4 bg-body-tertiary rounded-4 border">
+                        <div class="p-4 bg-body-tertiary rounded-4 border position-relative h-100">
                             <i class="bi bi-people fs-1 text-info mb-2 d-block"></i>
                             <h3 class="fw-bold mb-0">{{ active_subs_count }}</h3>
-                            <a href="{% url 'vendor_subscriptions' %}" class="stretched-link text-decoration-none text-secondary">Subscribers</a>
+                            <a href="{% url 'vendor_subscriptions' %}" class="stretched-link text-decoration-none text-secondary d-block">Subscribers</a>
+                        </div>
+                    </div>
+                </div>
+                <div class="row g-3 mt-2">
+                    <div class="col-md-2 col-sm-4 col-6">
+                        <div class="p-3 bg-body-tertiary rounded-4 border text-center">
+                            <div class="small text-secondary">Pending</div>
+                            <div class="fw-bold fs-4">{{ pending_orders_count }}</div>
+                        </div>
+                    </div>
+                    <div class="col-md-2 col-sm-4 col-6">
+                        <div class="p-3 bg-body-tertiary rounded-4 border text-center">
+                            <div class="small text-secondary">Preparing</div>
+                            <div class="fw-bold fs-4">{{ preparing_orders_count }}</div>
+                        </div>
+                    </div>
+                    <div class="col-md-2 col-sm-4 col-6">
+                        <div class="p-3 bg-body-tertiary rounded-4 border text-center">
+                            <div class="small text-secondary">Ready for Pickup</div>
+                            <div class="fw-bold fs-4">{{ ready_for_pickup_count }}</div>
+                        </div>
+                    </div>
+                    <div class="col-md-2 col-sm-4 col-6">
+                        <div class="p-3 bg-body-tertiary rounded-4 border text-center">
+                            <div class="small text-secondary">Assigned</div>
+                            <div class="fw-bold fs-4">{{ assigned_orders_count }}</div>
+                        </div>
+                    </div>
+                    <div class="col-md-2 col-sm-4 col-6">
+                        <div class="p-3 bg-body-tertiary rounded-4 border text-center">
+                            <div class="small text-secondary">Delivered</div>
+                            <div class="fw-bold fs-4">{{ delivered_orders_count }}</div>
+                        </div>
+                    </div>
+                    <div class="col-md-2 col-sm-4 col-6">
+                        <div class="p-3 bg-body-tertiary rounded-4 border text-center">
+                            <div class="small text-secondary">Cancelled</div>
+                            <div class="fw-bold fs-4">{{ cancelled_orders_count }}</div>
                         </div>
                     </div>
                 </div>
@@ -98,7 +138,137 @@
         
         <!-- Additional Metrics -->
         <div class="col-lg-12">
-            <div class="card glass-card p-4 border-0 mb-4">
+            <div class="card glass-card p-4 border-0 mb-4 section-card">
+                <h2 class="h5 mb-4"><i class="bi bi-stars text-purple me-2"></i>Recommendation Insights</h2>
+                <div class="row g-3 mb-4">
+                    <div class="col-md-3">
+                        <div class="p-3 bg-body-tertiary rounded-4 border text-center">
+                            <div class="small text-secondary">Meals tracked</div>
+                            <div class="fw-bold fs-4">{{ recommendation_stats.total_meals }}</div>
+                        </div>
+                    </div>
+                    <div class="col-md-3">
+                        <div class="p-3 bg-body-tertiary rounded-4 border text-center">
+                            <div class="small text-secondary">Top score</div>
+                            <div class="fw-bold fs-4">{{ recommendation_stats.top_score }}</div>
+                        </div>
+                    </div>
+                    <div class="col-md-3">
+                        <div class="p-3 bg-body-tertiary rounded-4 border text-center">
+                            <div class="small text-secondary">Lowest score</div>
+                            <div class="fw-bold fs-4">{{ recommendation_stats.lowest_score }}</div>
+                        </div>
+                    </div>
+                    <div class="col-md-3">
+                        <div class="p-3 bg-body-tertiary rounded-4 border text-center">
+                            <div class="small text-secondary">Average score</div>
+                            <div class="fw-bold fs-4">{{ recommendation_stats.avg_score }}</div>
+                        </div>
+                    </div>
+                </div>
+                <div class="row g-3">
+                    <div class="col-md-6">
+                        <h6 class="text-secondary mb-3">Most Recommended</h6>
+                        {% if most_recommended %}
+                            <ul class="list-group list-group-flush bg-transparent">
+                                {% for item in most_recommended %}
+                                    <li class="list-group-item bg-transparent d-flex justify-content-between align-items-center px-0">
+                                        <span>{{ item.meal.name }}</span>
+                                        <span class="badge bg-success rounded-pill">{{ item.score }} hits</span>
+                                    </li>
+                                {% endfor %}
+                            </ul>
+                        {% else %}
+                            <p class="text-secondary small mb-0">No recommendation data yet.</p>
+                        {% endif %}
+                    </div>
+                    <div class="col-md-6">
+                        <h6 class="text-secondary mb-3">Least Recommended</h6>
+                        {% if least_recommended %}
+                            <ul class="list-group list-group-flush bg-transparent">
+                                {% for item in least_recommended %}
+                                    <li class="list-group-item bg-transparent d-flex justify-content-between align-items-center px-0">
+                                        <span>{{ item.meal.name }}</span>
+                                        <span class="badge bg-warning rounded-pill">{{ item.score }} hits</span>
+                                    </li>
+                                {% endfor %}
+                            </ul>
+                        {% else %}
+                            <p class="text-secondary small mb-0">No recommendation data yet.</p>
+                        {% endif %}
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="col-lg-12">
+            <div class="card glass-card p-4 border-0 mb-4 section-card">
+                <h2 class="h5 mb-4"><i class="bi bi-stars text-warning me-2"></i>Shared AI Insights</h2>
+                {% if insights.summary %}
+                    <div class="alert alert-primary py-2 mb-3">
+                        <i class="bi bi-lightbulb me-1"></i> {{ insights.summary }}
+                    </div>
+                {% endif %}
+                <div class="row g-3 mb-3">
+                    <div class="col-md-4">
+                        <div class="p-3 bg-body-tertiary rounded-4 border text-center">
+                            <div class="small text-secondary">Revenue</div>
+                            <div class="fw-bold fs-4">₹{{ insights.sales.total|default:'0' }}</div>
+                        </div>
+                    </div>
+                    <div class="col-md-4">
+                        <div class="p-3 bg-body-tertiary rounded-4 border text-center">
+                            <div class="small text-secondary">Active subscribers</div>
+                            <div class="fw-bold fs-4">{{ insights.sales.active_subscriptions|default:'0' }}</div>
+                        </div>
+                    </div>
+                    <div class="col-md-4">
+                        <div class="p-3 bg-body-tertiary rounded-4 border text-center">
+                            <div class="small text-secondary">Forecast tomorrow</div>
+                            <div class="fw-bold fs-4">{{ insights.forecast.tomorrow|default:'0' }}</div>
+                        </div>
+                    </div>
+                </div>
+                <div class="row g-3">
+                    <div class="col-md-6">
+                        <h6 class="text-secondary mb-3">Popular meals</h6>
+                        {% if insights.popular_meals %}
+                            <ul class="list-group list-group-flush bg-transparent">
+                                {% for meal in insights.popular_meals %}
+                                    <li class="list-group-item bg-transparent d-flex justify-content-between align-items-center px-0">
+                                        <span>{{ meal.name }}</span>
+                                        <span class="badge bg-primary rounded-pill">{{ meal.order_count }} orders</span>
+                                    </li>
+                                {% endfor %}
+                            </ul>
+                        {% else %}
+                            <p class="text-secondary small mb-0">No meal demand data yet.</p>
+                        {% endif %}
+                    </div>
+                    <div class="col-md-6">
+                        <h6 class="text-secondary mb-3">Operational note</h6>
+                        <p class="text-secondary small mb-0">{{ insights.waste.recommendation|default:'No waste forecast yet.' }}</p>
+                    </div>
+                </div>
+            </div>
+
+            <div class="card glass-card p-4 border-0 mb-4 section-card">
+                <h2 class="h5 mb-4"><i class="bi bi-cloud-sun text-info me-2"></i>Today's Weather</h2>
+                {% if weather and weather.available %}
+                    <div class="p-3 bg-info-subtle border border-info-subtle text-info rounded-4 text-center mb-3">
+                        <div class="small text-uppercase fw-bold">{{ weather.city }}</div>
+                        <h3 class="fw-bold mb-1">{{ weather.temperature }}°C</h3>
+                        <div class="small">{{ weather.description }}</div>
+                    </div>
+                {% else %}
+                    <div class="p-3 bg-body-tertiary border rounded-4 text-center text-secondary mb-3">
+                        <i class="bi bi-cloud-slash me-1"></i> Weather unavailable
+                    </div>
+                {% endif %}
+                <div class="p-3 bg-body-tertiary border rounded-4">
+                    <div class="small fw-bold text-secondary mb-1">Demand impact</div>
+                    <div class="small text-secondary">{{ weather_impact.message|default:'Weather impact data unavailable.' }}</div>
+                </div>
                 <h2 class="h5 mb-4"><i class="bi bi-chat-square-text text-info me-2"></i>Customer Sentiment & Popular Meals</h2>
                 <div class="row">
                     <div class="col-md-6 border-end">
@@ -179,7 +349,7 @@
                     </table>
                 </div>
                 {% else %}
-                <p class="text-secondary small">No complaints to show.</p>
+                <div class="empty-state"><p class="text-secondary small mb-0">No complaints to show.</p></div>
                 {% endif %}
             </div>
     </div>

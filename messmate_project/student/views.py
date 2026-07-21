@@ -10,6 +10,7 @@ from django.contrib import messages
 from django.http import HttpResponse, JsonResponse
 from django.utils import timezone
 from django.db import transaction
+from django.db.models import Count
 
 from vendor.models import Mess, Meal
 from accounts.models import User, StudentProfile
@@ -17,11 +18,47 @@ from .models import (
     Subscription, Order, OrderItem, Cart, CartItem,
     WalletTransaction, Payment, Review, Complaint, Notification
 )
-from core.ai_services import (
-    recommend_messes, recommend_meals, 
-    analyze_review_sentiment, classify_complaint_nlp
-)
-from payments.services import create_payment_record, create_razorpay_order, mark_payment_success
+from payments.services import create_payment_record, create_razorpay_order, mark_payment_success, create_order_from_cart
+from core.email_services import send_subscription_confirmation_email, send_order_confirmation_email, send_complaint_resolution_email
+from core.weather_service import get_weather, get_weather_recommendations
+from core.ai_services import get_ai_insights, get_recommended_meals
+from core.maps_service import build_directions_url, build_open_maps_url, get_maps_config, get_mess_map_data
+
+def _recommend_messes_for_student(student):
+    subscriptions = Subscription.objects.filter(student=student).select_related('mess')
+    subscribed_mess_ids = {sub.mess_id for sub in subscriptions}
+
+    if subscriptions.exists():
+        diet_type_counts = {}
+        for sub in subscriptions:
+            diet_type_counts[sub.mess.diet_type] = diet_type_counts.get(sub.mess.diet_type, 0) + 1
+        preferred_diet = max(diet_type_counts.items(), key=lambda item: item[1])[0]
+        candidates = Mess.objects.filter(is_active=True, diet_type=preferred_diet).exclude(id__in=subscribed_mess_ids)
+    else:
+        candidates = Mess.objects.filter(is_active=True).exclude(id__in=subscribed_mess_ids)
+
+    if not candidates.exists():
+        candidates = Mess.objects.filter(is_active=True).exclude(id__in=subscribed_mess_ids)
+
+    popularity = {
+        item['mess_id']: item['total']
+        for item in Subscription.objects.values('mess_id').annotate(total=Count('id')).order_by('-total')
+    }
+
+    ranked_messes = sorted(
+        candidates,
+        key=lambda mess: (popularity.get(mess.id, 0), mess.average_rating),
+        reverse=True,
+    )
+    return ranked_messes[:3]
+
+
+def _get_student_recommendations(student):
+    return {
+        'meals': get_recommended_meals(student),
+        'messes': _recommend_messes_for_student(student),
+    }
+
 
 # PDF Generation Support
 try:
@@ -57,8 +94,11 @@ def student_dashboard(request):
     # Active Complaints
     complaints = Complaint.objects.filter(student=request.user).order_by('-created_at')[:5]
 
-    # AI Smart Meal Recommendations
-    smart_meals = recommend_meals(request.user)
+    recommendations = _get_student_recommendations(request.user)
+    city = request.user.address or 'Bengaluru'
+    weather = get_weather(city)
+    weather_recommendations = get_weather_recommendations(city, recommendations['meals'])
+    insights = get_ai_insights('student', request.user)
 
     context = {
         'profile': profile,
@@ -66,7 +106,11 @@ def student_dashboard(request):
         'orders': orders,
         'transactions': txs,
         'complaints': complaints,
-        'smart_meals': smart_meals,
+        'recommended_meals': recommendations['meals'],
+        'recommended_messes': recommendations['messes'],
+        'weather': weather,
+        'weather_recommendations': weather_recommendations,
+        'insights': insights,
     }
     return render(request, 'student/dashboard.html', context)
 
@@ -165,11 +209,26 @@ def mess_detail(request, mess_id):
     # Check if user already subscribed
     current_sub = Subscription.objects.filter(student=request.user, mess=mess, status__in=['active', 'paused']).first()
     
+    recommended_meals = [meal for meal in get_recommended_meals(request.user) if meal.mess_id == mess.id][:4]
+    if not recommended_meals:
+        recommended_meals = list(meals[:4])
+
+    maps_config = get_maps_config()
+    mess_map_data = get_mess_map_data(mess)
+    directions_url = build_directions_url(mess)
+    open_maps_url = build_open_maps_url(mess)
+
     return render(request, 'student/mess_detail.html', {
         'mess': mess,
         'meals': meals,
         'reviews': reviews,
-        'current_sub': current_sub
+        'current_sub': current_sub,
+        'recommended_meals': recommended_meals,
+        'google_maps_api_key': maps_config['api_key'],
+        'maps_config': maps_config,
+        'mess_map_data': mess_map_data,
+        'directions_url': directions_url,
+        'open_maps_url': open_maps_url,
     })
 
 
@@ -264,6 +323,12 @@ def subscribe_plan(request, mess_id):
                     title="Subscription Active!",
                     message=f"You are now subscribed to {mess.mess_name} ({plan_type.upper()}) until {end}.",
                     notification_type='email'
+                )
+                send_subscription_confirmation_email(
+                    request.user.username,
+                    request.user.email,
+                    mess.mess_name,
+                    plan_type.upper(),
                 )
 
             messages.success(request, f"Subscribed successfully to {mess.mess_name}!")
@@ -470,31 +535,13 @@ def checkout_cart(request):
                 profile.save()
 
                 # Create the order only after wallet funds are confirmed
-                mess = cart.items.first().meal.mess
-                otp = f"{random.randint(100000, 999999)}"
-                order = Order.objects.create(
-                    student=request.user,
-                    mess=mess,
-                    total_amount=total_cost,
-                    status='pending',
-                    delivery_otp=otp
-                )
-
-                for item in cart.items.all():
-                    OrderItem.objects.create(
-                        order=order,
-                        meal=item.meal,
-                        quantity=item.quantity,
-                        price=item.meal.price
-                    )
-
-                cart.items.all().delete()
+                order = create_order_from_cart(request.user, cart, total_amount=total_cost)
 
                 WalletTransaction.objects.create(
                     user=request.user,
                     amount=total_cost,
                     transaction_type='debit',
-                    description=f"Tiffin Order #{order.id} from {mess.mess_name}"
+                    description=f"Tiffin Order #{order.id} from {order.mess.mess_name}"
                 )
 
                 payment.order = order
@@ -531,13 +578,57 @@ def checkout_cart(request):
                 'razorpay_key_id': settings.RAZORPAY_KEY_ID,
             })
 
-    return render(request, 'student/checkout.html', {'cart': cart})
+    recommended_meals = []
+    first_item = cart.items.first()
+    if first_item:
+        recommended_meals = [meal for meal in get_recommended_meals(request.user) if meal.mess_id == first_item.meal.mess_id][:4]
+    if not recommended_meals:
+        recommended_meals = get_recommended_meals(request.user)[:4]
+
+    return render(request, 'student/checkout.html', {
+        'cart': cart,
+        'recommended_meals': recommended_meals,
+    })
+
+
+def build_order_status_steps(order):
+    status_order = ['pending', 'accepted', 'preparing', 'ready_for_pickup', 'assigned', 'out_for_delivery', 'delivered', 'completed']
+    status_labels = dict(Order.STATUS_CHOICES)
+    current_index = status_order.index(order.status) if order.status in status_order else None
+
+    return [
+        {
+            'key': key,
+            'label': status_labels.get(key, key.replace('_', ' ').title()),
+            'icon': {
+                'pending': 'bi-clock-history',
+                'accepted': 'bi-hand-thumbs-up',
+                'preparing': 'bi-egg-fried',
+                'ready_for_pickup': 'bi-box-seam',
+                'assigned': 'bi-person-check',
+                'out_for_delivery': 'bi-bicycle',
+                'delivered': 'bi-bag-check',
+                'completed': 'bi-check2-circle',
+            }[key],
+            'completed': current_index is not None and status_order.index(key) <= current_index,
+            'active': current_index is not None and status_order.index(key) == current_index,
+        }
+        for key in status_order
+    ]
 
 
 @student_required
 def track_order(request, order_id):
     order = get_object_or_404(Order, id=order_id, student=request.user)
-    return render(request, 'student/track_order.html', {'order': order})
+    status_steps = build_order_status_steps(order)
+
+    assigned_delivery_boy = order.delivery_boy if order.delivery_boy else None
+
+    return render(request, 'student/track_order.html', {
+        'order': order,
+        'timeline_steps': status_steps,
+        'assigned_delivery_boy': assigned_delivery_boy,
+    })
 
 
 # REVIEWS AND RATINGS
@@ -581,7 +672,7 @@ def submit_complaint(request):
         if not category:
             category = classify_complaint_nlp(description)
         
-        Complaint.objects.create(
+        complaint = Complaint.objects.create(
             student=request.user,
             mess=mess,
             order=order,
@@ -589,6 +680,13 @@ def submit_complaint(request):
             description=description,
             status='open'
         )
+        if request.user.email:
+            send_complaint_resolution_email(
+                request.user.username,
+                request.user.email,
+                complaint.id,
+                'We have received your complaint and will update you shortly.',
+            )
         messages.success(request, f"Complaint raised successfully under category: {category.replace('_', ' ').title()}")
         return redirect('student_dashboard')
         

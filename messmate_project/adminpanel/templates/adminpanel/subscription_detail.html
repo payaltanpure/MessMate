@@ -1,0 +1,86 @@
+{% extends 'base.html' %}
+
+{% block title %}Subscription Details - SMARTMESS AI{% endblock %}
+
+{% block content %}
+<div class="container py-4">
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <div>
+            <h1 class="h3 mb-1">Subscription Details</h1>
+            <p class="text-muted mb-0">Review and manage the selected subscription.</p>
+        </div>
+        <a href="{% url 'adminpanel:manage_subscriptions' %}" class="btn btn-outline-secondary">Back to Subscriptions</a>
+    </div>
+
+    <div class="card glass-card border-0">
+        <div class="card-body">
+            <div class="row g-4">
+                <div class="col-lg-8">
+                    <h2 class="h4 mb-3">Subscription #{{ subscription.id }}</h2>
+                    <div class="row g-3">
+                        <div class="col-md-6">
+                            <div class="fw-semibold">Student</div>
+                            <div>{{ subscription.student.get_full_name|default:subscription.student.username }}</div>
+                        </div>
+                        <div class="col-md-6">
+                            <div class="fw-semibold">Mess</div>
+                            <div>{{ subscription.mess.mess_name }}</div>
+                        </div>
+                        <div class="col-md-6">
+                            <div class="fw-semibold">Plan</div>
+                            <div>{{ subscription.get_plan_type_display }}</div>
+                        </div>
+                        <div class="col-md-6">
+                            <div class="fw-semibold">Amount</div>
+                            <div>Rs. {{ payment.amount|default:subscription.price_paid }}</div>
+                        </div>
+                        <div class="col-md-6">
+                            <div class="fw-semibold">Start Date</div>
+                            <div>{{ subscription.start_date }}</div>
+                        </div>
+                        <div class="col-md-6">
+                            <div class="fw-semibold">End Date</div>
+                            <div>{{ subscription.end_date }}</div>
+                        </div>
+                        <div class="col-md-6">
+                            <div class="fw-semibold">Status</div>
+                            <div>{{ subscription.get_status_display }}</div>
+                        </div>
+                        <div class="col-md-6">
+                            <div class="fw-semibold">Payment Status</div>
+                            <div>{{ payment.get_status_display|default:'N/A' }}</div>
+                        </div>
+                        <div class="col-md-6">
+                            <div class="fw-semibold">Payment Method</div>
+                            <div>{{ payment.payment_method|default:'N/A'|title }}</div>
+                        </div>
+                    </div>
+
+                    <div class="mt-4 d-flex gap-2 flex-wrap">
+                        <form method="post" action="{% url 'adminpanel:activate_subscription' subscription.id %}">
+                            {% csrf_token %}
+                            <button type="submit" class="btn btn-outline-success">Activate</button>
+                        </form>
+                        <form method="post" action="{% url 'adminpanel:pause_subscription' subscription.id %}">
+                            {% csrf_token %}
+                            <button type="submit" class="btn btn-outline-warning">Pause</button>
+                        </form>
+                        <form method="post" action="{% url 'adminpanel:resume_subscription' subscription.id %}">
+                            {% csrf_token %}
+                            <button type="submit" class="btn btn-outline-info">Resume</button>
+                        </form>
+                        <form method="post" action="{% url 'adminpanel:cancel_subscription' subscription.id %}" onsubmit="return confirm('Cancel this subscription?');">
+                            {% csrf_token %}
+                            <button type="submit" class="btn btn-outline-danger">Cancel</button>
+                        </form>
+                        <form method="post" action="{% url 'adminpanel:extend_subscription' subscription.id %}">
+                            {% csrf_token %}
+                            <button type="submit" class="btn btn-outline-primary">Extend 30 Days</button>
+                        </form>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

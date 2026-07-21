@@ -19,6 +19,7 @@ from django.urls import path, include
 from django.conf import settings
 from django.conf.urls.static import static
 from adminpanel.views import admin_dashboard
+from core.api.urls import schema_view
 
 urlpatterns = [
     path('admin/', admin.site.urls),
@@ -31,9 +32,12 @@ urlpatterns = [
     path('payments/', include('payments.urls')),  # Include payments app URLs
     path('admin-dashboard/', admin_dashboard, name='admin_dashboard'),
     path('adminpanel/', include('adminpanel.urls')),
+    path('admin-panel/', include(('adminpanel.urls', 'adminpanel_alias'), namespace='adminpanel_alias')),
     
     # REST APIs & Swagger Doc paths
     path('api/', include('core.api.urls')),
+    path('swagger/', schema_view.with_ui('swagger', cache_timeout=0), name='schema-swagger-ui'),
+    path('redoc/', schema_view.with_ui('redoc', cache_timeout=0), name='schema-redoc'),
 ]
 
 if settings.DEBUG:

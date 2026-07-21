@@ -17,6 +17,8 @@ class Mess(models.Model):
     
     # Location and distance metrics (distance from hostel area in km)
     location_name = models.CharField(max_length=150, default='Hostel Campus')
+    latitude = models.FloatField(null=True, blank=True)
+    longitude = models.FloatField(null=True, blank=True)
     distance = models.FloatField(default=1.0) # in km
     
     # Pricing for subscriptions
@@ -62,4 +64,8 @@ class Meal(models.Model):
     image = models.ImageField(upload_to='meals/', blank=True, null=True)
 
     def __str__(self):
-        return f"{self.mess.mess_name} - {self.meal_type} ({self.name})"
+        return f"{self.mess.mess_name} - {self.meal_type} ({self.name})"
+
+    @property
+    def created_date(self):
+        return getattr(self, 'created_at', None)

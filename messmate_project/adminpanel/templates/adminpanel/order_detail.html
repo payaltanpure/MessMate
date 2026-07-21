@@ -1,0 +1,91 @@
+{% extends 'base.html' %}
+
+{% block title %}Order Details - SMARTMESS AI{% endblock %}
+
+{% block content %}
+<div class="container py-4">
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <div>
+            <h1 class="h3 mb-1">Order Details</h1>
+            <p class="text-muted mb-0">Review and update order progress.</p>
+        </div>
+        <a href="{% url 'adminpanel:manage_orders' %}" class="btn btn-outline-secondary">Back to Orders</a>
+    </div>
+
+    <div class="card glass-card border-0">
+        <div class="card-body">
+            <div class="row g-4">
+                <div class="col-lg-8">
+                    <h2 class="h4 mb-3">Order #{{ order.id }}</h2>
+                    <div class="row g-3">
+                        <div class="col-md-6">
+                            <div class="fw-semibold">Student</div>
+                            <div>{{ order.student.get_full_name|default:order.student.username }}</div>
+                        </div>
+                        <div class="col-md-6">
+                            <div class="fw-semibold">Vendor</div>
+                            <div>{{ order.mess.vendor.get_full_name|default:order.mess.vendor.username }}</div>
+                        </div>
+                        <div class="col-md-6">
+                            <div class="fw-semibold">Mess</div>
+                            <div>{{ order.mess.mess_name }}</div>
+                        </div>
+                        <div class="col-md-6">
+                            <div class="fw-semibold">Amount</div>
+                            <div>Rs. {{ payment.amount|default:order.total_amount }}</div>
+                        </div>
+                        <div class="col-md-6">
+                            <div class="fw-semibold">Payment Method</div>
+                            <div>{{ payment.payment_method|default:'N/A'|title }}</div>
+                        </div>
+                        <div class="col-md-6">
+                            <div class="fw-semibold">Payment Status</div>
+                            <div>{{ payment.get_status_display|default:'N/A' }}</div>
+                        </div>
+                        <div class="col-md-6">
+                            <div class="fw-semibold">Order Status</div>
+                            <div>{{ order.get_status_display }}</div>
+                        </div>
+                        <div class="col-md-6">
+                            <div class="fw-semibold">Order Date</div>
+                            <div>{{ order.order_date|date:'Y-m-d H:i' }}</div>
+                        </div>
+                        <div class="col-md-6">
+                            <div class="fw-semibold">Delivery Time</div>
+                            <div>{{ delivery_time|date:'Y-m-d H:i'|default:'—' }}</div>
+                        </div>
+                        <div class="col-md-6">
+                            <div class="fw-semibold">Assigned Delivery Boy</div>
+                            <div>{% if order.delivery_boy %}{{ order.delivery_boy.get_full_name|default:order.delivery_boy.username }}{% else %}Not assigned{% endif %}</div>
+                        </div>
+                    </div>
+
+                    <div class="mt-4">
+                        <form method="post" action="{% url 'adminpanel:update_order_status' order.id %}" class="row g-3 align-items-end">
+                            {% csrf_token %}
+                            <div class="col-md-4">
+                                <label class="form-label">Update Status</label>
+                                <select name="status" class="form-select">
+                                    {% for value, label in order_status_choices %}
+                                        <option value="{{ value }}" {% if order.status == value %}selected{% endif %}>{{ label }}</option>
+                                    {% endfor %}
+                                </select>
+                            </div>
+                            <div class="col-md-2">
+                                <button type="submit" class="btn btn-gradient w-100">Save</button>
+                            </div>
+                        </form>
+                    </div>
+
+                    <div class="mt-3 d-flex gap-2 flex-wrap">
+                        <form method="post" action="{% url 'adminpanel:cancel_order' order.id %}" onsubmit="return confirm('Cancel this order?');">
+                            {% csrf_token %}
+                            <button type="submit" class="btn btn-outline-danger">Cancel Order</button>
+                        </form>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

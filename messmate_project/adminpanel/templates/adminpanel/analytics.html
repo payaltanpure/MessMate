@@ -1,0 +1,289 @@
+{% extends 'base.html' %}
+
+{% block title %}Analytics & Reports - SMARTMESS AI{% endblock %}
+
+{% block content %}
+<div class="container py-4">
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <div>
+            <h1 class="h3 mb-1">Analytics & Reports</h1>
+            <p class="text-muted mb-0">Operational insights for revenue, orders, users, and complaints.</p>
+        </div>
+        <a href="{% url 'adminpanel:admin_dashboard' %}" class="btn btn-outline-secondary">Back to Dashboard</a>
+    </div>
+
+    <div class="card glass-card border-0 mb-4">
+        <div class="card-body">
+            <form method="get" class="row g-3 align-items-end">
+                <div class="col-md-2">
+                    <label class="form-label">Range</label>
+                    <select name="range" class="form-select">
+                        <option value="today" {% if range_filter == 'today' %}selected{% endif %}>Today</option>
+                        <option value="last_7_days" {% if range_filter == 'last_7_days' %}selected{% endif %}>Last 7 Days</option>
+                        <option value="last_30_days" {% if range_filter == 'last_30_days' %}selected{% endif %}>Last 30 Days</option>
+                        <option value="this_month" {% if range_filter == 'this_month' or not range_filter %}selected{% endif %}>This Month</option>
+                        <option value="this_year" {% if range_filter == 'this_year' %}selected{% endif %}>This Year</option>
+                    </select>
+                </div>
+                <div class="col-md-3">
+                    <label class="form-label">Start Date</label>
+                    <input type="date" name="start_date" class="form-control" value="{{ start_date }}">
+                </div>
+                <div class="col-md-3">
+                    <label class="form-label">End Date</label>
+                    <input type="date" name="end_date" class="form-control" value="{{ end_date }}">
+                </div>
+                <div class="col-md-2">
+                    <button type="submit" class="btn btn-gradient w-100">Apply</button>
+                </div>
+                <div class="col-md-2">
+                    <a href="{% url 'adminpanel:export_analytics_csv' %}?total_revenue={{ total_revenue }}&total_students={{ total_students }}&total_vendors={{ total_vendors }}&total_messes={{ total_messes }}&total_orders={{ total_orders }}&active_subscriptions={{ active_subscriptions }}&pending_complaints={{ pending_complaints }}&wallet_summary={{ wallet_summary }}" class="btn btn-outline-success w-100 mb-2">Export CSV</a>
+                    <a href="{% url 'adminpanel:export_analytics_excel' %}?total_revenue={{ total_revenue }}&total_students={{ total_students }}&total_vendors={{ total_vendors }}&total_messes={{ total_messes }}&total_orders={{ total_orders }}&active_subscriptions={{ active_subscriptions }}&pending_complaints={{ pending_complaints }}&wallet_summary={{ wallet_summary }}" class="btn btn-outline-primary w-100">Export Excel</a>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <div class="row g-3 mb-4">
+        <div class="col-12 col-sm-6 col-lg-3">
+            <div class="card glass-card border-0 h-100">
+                <div class="card-body">
+                    <h6 class="text-secondary mb-1">Total Revenue</h6>
+                    <h3 class="mb-0">Rs. {{ total_revenue }}</h3>
+                </div>
+            </div>
+        </div>
+        <div class="col-12 col-sm-6 col-lg-3">
+            <div class="card glass-card border-0 h-100">
+                <div class="card-body">
+                    <h6 class="text-secondary mb-1">Total Students</h6>
+                    <h3 class="mb-0">{{ total_students }}</h3>
+                </div>
+            </div>
+        </div>
+        <div class="col-12 col-sm-6 col-lg-3">
+            <div class="card glass-card border-0 h-100">
+                <div class="card-body">
+                    <h6 class="text-secondary mb-1">Total Vendors</h6>
+                    <h3 class="mb-0">{{ total_vendors }}</h3>
+                </div>
+            </div>
+        </div>
+        <div class="col-12 col-sm-6 col-lg-3">
+            <div class="card glass-card border-0 h-100">
+                <div class="card-body">
+                    <h6 class="text-secondary mb-1">Total Messes</h6>
+                    <h3 class="mb-0">{{ total_messes }}</h3>
+                </div>
+            </div>
+        </div>
+        <div class="col-12 col-sm-6 col-lg-3">
+            <div class="card glass-card border-0 h-100">
+                <div class="card-body">
+                    <h6 class="text-secondary mb-1">Total Orders</h6>
+                    <h3 class="mb-0">{{ total_orders }}</h3>
+                </div>
+            </div>
+        </div>
+        <div class="col-12 col-sm-6 col-lg-3">
+            <div class="card glass-card border-0 h-100">
+                <div class="card-body">
+                    <h6 class="text-secondary mb-1">Active Subscriptions</h6>
+                    <h3 class="mb-0">{{ active_subscriptions }}</h3>
+                </div>
+            </div>
+        </div>
+        <div class="col-12 col-sm-6 col-lg-3">
+            <div class="card glass-card border-0 h-100">
+                <div class="card-body">
+                    <h6 class="text-secondary mb-1">Pending Complaints</h6>
+                    <h3 class="mb-0">{{ pending_complaints }}</h3>
+                </div>
+            </div>
+        </div>
+        <div class="col-12 col-sm-6 col-lg-3">
+            <div class="card glass-card border-0 h-100">
+                <div class="card-body">
+                    <h6 class="text-secondary mb-1">Wallet Balance Summary</h6>
+                    <h3 class="mb-0">Rs. {{ wallet_summary }}</h3>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="row g-4 mb-4">
+        <div class="col-12 col-lg-6">
+            <div class="card glass-card border-0 h-100">
+                <div class="card-body">
+                    <h5 class="card-title">Monthly Revenue</h5>
+                    <canvas id="revenueChart"></canvas>
+                </div>
+            </div>
+        </div>
+        <div class="col-12 col-lg-6">
+            <div class="card glass-card border-0 h-100">
+                <div class="card-body">
+                    <h5 class="card-title">Orders per Month</h5>
+                    <canvas id="ordersChart"></canvas>
+                </div>
+            </div>
+        </div>
+        <div class="col-12 col-lg-6">
+            <div class="card glass-card border-0 h-100">
+                <div class="card-body">
+                    <h5 class="card-title">Student Registrations per Month</h5>
+                    <canvas id="studentsChart"></canvas>
+                </div>
+            </div>
+        </div>
+        <div class="col-12 col-lg-6">
+            <div class="card glass-card border-0 h-100">
+                <div class="card-body">
+                    <h5 class="card-title">Vendor Registrations per Month</h5>
+                    <canvas id="vendorsChart"></canvas>
+                </div>
+            </div>
+        </div>
+        <div class="col-12 col-lg-6">
+            <div class="card glass-card border-0 h-100">
+                <div class="card-body">
+                    <h5 class="card-title">Complaint Status Distribution</h5>
+                    <canvas id="complaintsChart"></canvas>
+                </div>
+            </div>
+        </div>
+        <div class="col-12 col-lg-6">
+            <div class="card glass-card border-0 h-100">
+                <div class="card-body">
+                    <h5 class="card-title">Subscription Status Distribution</h5>
+                    <canvas id="subscriptionsChart"></canvas>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="row g-4">
+        <div class="col-12 col-lg-6">
+            <div class="card glass-card border-0 h-100">
+                <div class="card-body">
+                    <h5 class="card-title">Top 10 Most Ordered Meals</h5>
+                    <div class="table-responsive">
+                        <table class="table table-sm">
+                            <thead><tr><th>Meal</th><th>Orders</th></tr></thead>
+                            <tbody>
+                                {% for item in top_meals %}
+                                <tr><td>{{ item.meal__name }}</td><td>{{ item.total_orders }}</td></tr>
+                                {% empty %}
+                                <tr><td colspan="2" class="text-muted">No data</td></tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <div class="col-12 col-lg-6">
+            <div class="card glass-card border-0 h-100">
+                <div class="card-body">
+                    <h5 class="card-title">Top 10 Messes by Orders</h5>
+                    <div class="table-responsive">
+                        <table class="table table-sm">
+                            <thead><tr><th>Mess</th><th>Orders</th></tr></thead>
+                            <tbody>
+                                {% for item in top_messes %}
+                                <tr><td>{{ item.mess__mess_name }}</td><td>{{ item.total_orders }}</td></tr>
+                                {% empty %}
+                                <tr><td colspan="2" class="text-muted">No data</td></tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <div class="col-12 col-lg-6">
+            <div class="card glass-card border-0 h-100">
+                <div class="card-body">
+                    <h5 class="card-title">Top 10 Students by Orders</h5>
+                    <div class="table-responsive">
+                        <table class="table table-sm">
+                            <thead><tr><th>Student</th><th>Orders</th></tr></thead>
+                            <tbody>
+                                {% for item in top_students %}
+                                <tr><td>{{ item.student__username }}</td><td>{{ item.total_orders }}</td></tr>
+                                {% empty %}
+                                <tr><td colspan="2" class="text-muted">No data</td></tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <div class="col-12 col-lg-6">
+            <div class="card glass-card border-0 h-100">
+                <div class="card-body">
+                    <h5 class="card-title">Top 10 Vendors by Revenue</h5>
+                    <div class="table-responsive">
+                        <table class="table table-sm">
+                            <thead><tr><th>Vendor</th><th>Revenue</th></tr></thead>
+                            <tbody>
+                                {% for item in top_vendors %}
+                                <tr><td>{{ item.order__mess__vendor__username }}</td><td>Rs. {{ item.total_revenue }}</td></tr>
+                                {% empty %}
+                                <tr><td colspan="2" class="text-muted">No data</td></tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<script>
+    const labels = {{ labels|safe }};
+    const revenueData = {{ revenue_series|safe }};
+    const ordersData = {{ orders_series|safe }};
+    const studentData = {{ student_series|safe }};
+    const vendorData = {{ vendor_series|safe }};
+    const complaintData = {{ complaint_series|safe }};
+    const subscriptionData = {{ subscription_series|safe }};
+
+    const renderLineChart = (canvasId, label, data, color) => {
+        new Chart(document.getElementById(canvasId), {
+            type: 'line',
+            data: {
+                labels: labels.map((value) => value.split('-').slice(0, 3).join('-')),
+                datasets: [{ label, data, borderColor: color, backgroundColor: color + '33', fill: true, tension: 0.3 }]
+            },
+            options: { responsive: true, maintainAspectRatio: false }
+        });
+    };
+
+    renderLineChart('revenueChart', 'Revenue', revenueData, '#0d6efd');
+    renderLineChart('ordersChart', 'Orders', ordersData, '#198754');
+    renderLineChart('studentsChart', 'Students', studentData, '#fd7e14');
+    renderLineChart('vendorsChart', 'Vendors', vendorData, '#d63384');
+
+    new Chart(document.getElementById('complaintsChart'), {
+        type: 'bar',
+        data: {
+            labels: ['Open', 'In Progress', 'Resolved'],
+            datasets: [{ label: 'Complaints', data: [{{ complaint_status_counts.open }}, {{ complaint_status_counts.in_progress }}, {{ complaint_status_counts.resolved }}] }]
+        },
+        options: { responsive: true, maintainAspectRatio: false }
+    });
+
+    new Chart(document.getElementById('subscriptionsChart'), {
+        type: 'doughnut',
+        data: {
+            labels: ['Active', 'Paused', 'Cancelled', 'Expired'],
+            datasets: [{ data: [{{ subscription_status_counts.active }}, {{ subscription_status_counts.paused }}, {{ subscription_status_counts.cancelled }}, {{ subscription_status_counts.expired }}] }]
+        },
+        options: { responsive: true, maintainAspectRatio: false }
+    });
+</script>
+{% endblock %}

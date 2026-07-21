@@ -72,6 +72,7 @@
                         <th>Type</th>
                         <th>Price</th>
                         <th>Status</th>
+                        <th>Created Date</th>
                         <th>Actions</th>
                     </tr>
                 </thead>
@@ -93,6 +94,7 @@
                                 <span class="badge bg-danger-subtle text-danger">Unavailable</span>
                             {% endif %}
                         </td>
+                        <td>{{ meal.created_date|date:"Y-m-d"|default:"—" }}</td>
                         <td>
                             <div class="d-flex gap-2 flex-wrap">
                                 <a href="{% url 'adminpanel:meal_detail' meal.id %}" class="btn btn-sm btn-outline-primary">View</a>
@@ -103,12 +105,16 @@
                                         {% if meal.is_available %}Disable{% else %}Enable{% endif %}
                                     </button>
                                 </form>
+                                <form method="post" action="{% url 'adminpanel:delete_meal' meal.id %}" class="d-inline" onsubmit="return confirm('Delete this meal?');">
+                                    {% csrf_token %}
+                                    <button type="submit" class="btn btn-sm btn-outline-danger">Delete</button>
+                                </form>
                             </div>
                         </td>
                     </tr>
                     {% empty %}
                     <tr>
-                        <td colspan="7" class="text-center text-muted py-4">No meals found.</td>
+                        <td colspan="8" class="text-center text-muted py-4">No meals found.</td>
                     </tr>
                     {% endfor %}
                 </tbody>

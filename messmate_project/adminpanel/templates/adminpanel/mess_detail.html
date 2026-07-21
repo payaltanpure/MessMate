@@ -40,6 +40,38 @@
         </div>
     </div>
 
+    <div class="card glass-card border-0 mb-4">
+        <div class="card-body">
+            <h5 class="mb-3">Location Map</h5>
+            {% if maps_config.enabled %}
+                <div class="d-flex flex-wrap gap-2 mb-3">
+                    <a href="{{ directions_url }}" target="_blank" rel="noopener" class="btn btn-sm btn-outline-primary rounded-pill"><i class="bi bi-signpost-2 me-1"></i>Get Directions</a>
+                    <a href="{{ open_maps_url }}" target="_blank" rel="noopener" class="btn btn-sm btn-outline-success rounded-pill"><i class="bi bi-google me-1"></i>Open in Google Maps</a>
+                </div>
+                <div id="admin-mess-map" style="height: 320px; border-radius: 16px; background: #f8fafc;"></div>
+            {% else %}
+                <div class="border rounded-4 p-4 text-secondary" style="min-height: 220px;">
+                    <div class="d-flex flex-wrap justify-content-between align-items-start gap-3 mb-3">
+                        <div>
+                            <h6 class="mb-1">{{ maps_config.placeholder_message }}</h6>
+                            <p class="mb-1"><strong>Address:</strong> {{ mess.address }}</p>
+                            <p class="mb-1"><strong>Area:</strong> {{ mess.location_name }}</p>
+                            {% if mess_map_data.has_coordinates %}
+                                <p class="mb-0"><strong>Coordinates:</strong> {{ mess_map_data.latitude }}, {{ mess_map_data.longitude }}</p>
+                            {% else %}
+                                <p class="mb-0 text-muted">Coordinates will be shown once the mess location is saved.</p>
+                            {% endif %}
+                        </div>
+                        <div class="d-flex flex-wrap gap-2">
+                            <a href="{{ directions_url }}" target="_blank" rel="noopener" class="btn btn-sm btn-outline-primary rounded-pill"><i class="bi bi-signpost-2 me-1"></i>Get Directions</a>
+                            <a href="{{ open_maps_url }}" target="_blank" rel="noopener" class="btn btn-sm btn-outline-success rounded-pill"><i class="bi bi-google me-1"></i>Open in Google Maps</a>
+                        </div>
+                    </div>
+                </div>
+            {% endif %}
+        </div>
+    </div>
+
     <div class="card glass-card border-0">
         <div class="card-body">
             <h5 class="mb-3">Meals</h5>
@@ -72,4 +104,22 @@
         </div>
     </div>
 </div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+    document.addEventListener('DOMContentLoaded', function () {
+        const mapContainer = document.getElementById('admin-mess-map');
+        if (!mapContainer) return;
+        const apiKey = '{{ google_maps_api_key|default:"" }}';
+        if (!apiKey) {
+            mapContainer.innerHTML = '<div class="h-100 d-flex align-items-center justify-content-center text-secondary"><div><i class="bi bi-map fs-3 d-block mb-2"></i><div>{{ maps_config.placeholder_message }}</div></div></div>';
+            return;
+        }
+        const center = { lat: {{ mess_map_data.latitude }}, lng: {{ mess_map_data.longitude }} };
+        const map = new google.maps.Map(mapContainer, { zoom: 14, center });
+        new google.maps.Marker({ position: center, map });
+    });
+</script>
+<script async defer src="https://maps.googleapis.com/maps/api/js?key={{ google_maps_api_key }}"></script>
 {% endblock %}

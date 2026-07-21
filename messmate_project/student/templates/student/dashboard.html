@@ -4,13 +4,12 @@
 
 {% block content %}
 <div class="container py-4">
-    <!-- Header Greeting with profile photo -->
-    <div class="row align-items-center mb-5">
-        <div class="col-md-8 d-flex align-items-center gap-4">
+    <div class="row align-items-center mb-4 mb-md-5">
+        <div class="col-md-8 d-flex align-items-center gap-3 gap-md-4">
             {% if profile.photo %}
-                <img src="{{ profile.photo.url }}" class="rounded-circle border border-primary shadow" style="width: 80px; height: 80px; object-fit: cover;" alt="Profile Photo">
+                <img src="{{ profile.photo.url }}" class="rounded-circle border border-primary shadow" style="width: 84px; height: 84px; object-fit: cover;" alt="Profile Photo">
             {% else %}
-                <div class="bg-primary-subtle text-primary rounded-circle border border-primary shadow d-flex align-items-center justify-content-center" style="width: 80px; height: 80px;">
+                <div class="bg-primary-subtle text-primary rounded-circle border border-primary shadow d-flex align-items-center justify-content-center" style="width: 84px; height: 84px;">
                     <i class="bi bi-person-fill fs-2"></i>
                 </div>
             {% endif %}
@@ -19,9 +18,9 @@
                 <p class="text-secondary mb-0"><i class="bi bi-patch-check-fill text-success me-1"></i> {% if request.user.email_verified %}Verified Student{% else %}Pending Email Verification{% endif %}</p>
             </div>
         </div>
-        <div class="col-md-4 text-md-end mt-3 mt-md-0">
-            <a href="{% url 'edit_profile' %}" class="btn btn-outline-secondary rounded-pill btn-sm me-2"><i class="bi bi-pencil-square me-1"></i>Edit Profile</a>
-            <a href="{% url 'submit_complaint' %}" class="btn btn-danger btn-gradient rounded-pill btn-sm"><i class="bi bi-exclamation-triangle-fill me-1"></i>Raise Issue</a>
+        <div class="col-md-4 text-md-end mt-3 mt-md-0 dashboard-actions">
+            <a href="{% url 'edit_profile' %}" class="btn btn-soft rounded-pill btn-sm me-2 mb-2 mb-md-0"><i class="bi bi-pencil-square me-1"></i>Edit Profile</a>
+            <a href="{% url 'submit_complaint' %}" class="btn btn-gradient rounded-pill btn-sm"><i class="bi bi-exclamation-triangle-fill me-1"></i>Raise Issue</a>
         </div>
     </div>
 
@@ -29,8 +28,11 @@
         <!-- Main Stats & Active Sub -->
         <div class="col-lg-8">
             <!-- Active Subscription Panel -->
-            <div class="card glass-card p-4 border-0 mb-4">
-                <h2 class="h5 mb-4"><i class="bi bi-calendar-check gradient-text me-2"></i>Active Mess Subscription</h2>
+            <div class="card glass-card p-4 border-0 mb-4 section-card">
+                <div class="d-flex align-items-center justify-content-between mb-4">
+                    <h2 class="h5 mb-0"><i class="bi bi-calendar-check gradient-text me-2"></i>Active Mess Subscription</h2>
+                    <span class="loading-state"><span class="loading-dot"></span>Live status</span>
+                </div>
                 {% if subscription %}
                     <div class="row align-items-center">
                         <div class="col-md-6 mb-3 mb-md-0">
@@ -85,46 +87,78 @@
                         </div>
                     </div>
                 {% else %}
-                    <div class="text-center py-4 bg-body-tertiary rounded-4 border border-dashed">
+                    <div class="empty-state">
                         <i class="bi bi-calendar-x fs-1 text-secondary opacity-50 mb-2"></i>
-                        <p class="lead mb-3">No active subscription plan</p>
+                        <p class="lead mb-3 text-dark">No active subscription plan</p>
                         <a href="{% url 'home' %}" class="btn btn-gradient rounded-pill px-4 btn-sm">Subscribe to Mess</a>
                     </div>
                 {% endif %}
             </div>
 
             <!-- Tiffin Ordering Panel -->
-            <div class="card glass-card p-4 border-0 mb-4">
+            <div class="card glass-card p-4 border-0 mb-4 section-card">
                 <h2 class="h5 mb-4"><i class="bi bi-bag-check gradient-text me-2"></i>Recent Tiffin Orders</h2>
                 {% if orders %}
                     <div class="table-responsive">
-                        <table class="table align-middle">
+                        <table class="table table-modern align-middle">
                             <thead>
                                 <tr>
                                     <th>Order #</th>
                                     <th>Mess</th>
                                     <th>Date</th>
                                     <th>Status</th>
-                                    <th>Total Amount</th>
+                                    <th>Delivery Partner</th>
+                                    <th>Amount</th>
                                     <th>Action</th>
                                 </tr>
                             </thead>
                             <tbody>
                                 {% for order in orders %}
                                     <tr>
-                                        <td>#{{ order.id }}</td>
+                                        <td><strong>#{{ order.id }}</strong></td>
                                         <td>{{ order.mess.mess_name }}</td>
-                                        <td>{{ order.order_date|date:"d M Y, h:i A" }}</td>
+                                        <td><small>{{ order.order_date|date:"d M Y, h:i A" }}</small></td>
                                         <td>
                                             <span class="badge 
                                                 {% if order.status == 'delivered' %}bg-success-subtle text-success
+                                                {% elif order.status == 'out_for_delivery' %}bg-info-subtle text-info
+                                                {% elif order.status == 'preparing' %}bg-primary-subtle text-primary
+                                                {% elif order.status == 'accepted' %}bg-primary-subtle text-primary
                                                 {% elif order.status == 'pending' %}bg-warning-subtle text-warning
                                                 {% elif order.status == 'cancelled' %}bg-danger-subtle text-danger
-                                                {% else %}bg-info-subtle text-info{% endif %} px-2 py-1 rounded">
+                                                {% else %}bg-secondary-subtle text-secondary{% endif %} px-2 py-1 rounded">
+                                                <i class="bi 
+                                                    {% if order.status == 'delivered' %}bi-check-circle-fill
+                                                    {% elif order.status == 'out_for_delivery' %}bi-truck
+                                                    {% elif order.status == 'preparing' %}bi-egg-fried
+                                                    {% elif order.status == 'accepted' %}bi-hand-thumbs-up
+                                                    {% elif order.status == 'pending' %}bi-clock-history
+                                                    {% elif order.status == 'cancelled' %}bi-x-circle
+                                                    {% endif %} me-1"></i>
                                                 {{ order.get_status_display }}
                                             </span>
                                         </td>
-                                        <td>Rs. {{ order.total_amount }}</td>
+                                        <td>
+                                            {% if order.delivery_boy %}
+                                                <div class="d-flex align-items-center gap-2">
+                                                    <div class="bg-info-subtle text-info rounded-circle d-flex align-items-center justify-content-center flex-shrink-0" style="width: 28px; height: 28px;">
+                                                        <i class="bi bi-person-fill fs-6"></i>
+                                                    </div>
+                                                    <div style="font-size: 12px;">
+                                                        <p class="mb-0 fw-bold">{{ order.delivery_boy.first_name|default:order.delivery_boy.username }}</p>
+                                                        {% if order.delivery_boy.phone %}
+                                                        <small class="text-secondary">{{ order.delivery_boy.phone }}</small>
+                                                        {% endif %}
+                                                    </div>
+                                                </div>
+                                            {% else %}
+                                                <small class="text-secondary">
+                                                    <i class="bi bi-hourglass-split me-1"></i>
+                                                    Awaiting Assignment
+                                                </small>
+                                            {% endif %}
+                                        </td>
+                                        <td><strong class="text-success">Rs. {{ order.total_amount }}</strong></td>
                                         <td>
                                             <a href="{% url 'track_order' order.id %}" class="btn btn-outline-primary btn-sm rounded-pill px-3">Track</a>
                                         </td>
@@ -134,43 +168,118 @@
                         </table>
                     </div>
                 {% else %}
-                    <p class="text-secondary text-center mb-0">No tiffin orders placed yet.</p>
+                    <div class="empty-state"><p class="text-secondary text-center mb-0">No tiffin orders placed yet.</p></div>
                 {% endif %}
             </div>
 
-            <!-- AI Recommended Meals list -->
-            {% if smart_meals %}
+            <!-- Recommended For You -->
             <div class="card glass-card p-4 border-0">
                 <div class="d-flex align-items-center gap-2 mb-3">
                     <i class="bi bi-magic gradient-text fs-4"></i>
-                    <h2 class="h5 mb-0">Smart Meal Suggestions for You</h2>
+                    <h2 class="h5 mb-0">Recommended For You</h2>
                 </div>
-                <div class="row g-3">
-                    {% for m in smart_meals %}
-                        <div class="col-md-6">
-                            <div class="p-3 bg-body-tertiary rounded-4 border d-flex justify-content-between align-items-center">
-                                <div>
-                                    <h4 class="h6 mb-1">{{ m.name }}</h4>
-                                    <span class="text-secondary small">{{ m.mess.mess_name }} • Rs. {{ m.price }}</span>
+
+                {% if recommended_meals or recommended_messes %}
+                    <div class="mb-4">
+                        <h3 class="h6 mb-2">Suggested Meals</h3>
+                        <div class="row g-3">
+                            {% for meal in recommended_meals %}
+                                <div class="col-md-6">
+                                    <div class="p-3 bg-body-tertiary rounded-4 border d-flex justify-content-between align-items-center">
+                                        <div>
+                                            <h4 class="h6 mb-1">{{ meal.name }}</h4>
+                                            <span class="text-secondary small">{{ meal.mess.mess_name }} • Rs. {{ meal.price }}</span>
+                                        </div>
+                                        <form method="POST" action="{% url 'add_to_cart' meal.id %}" class="d-inline">
+                                            {% csrf_token %}
+                                            <button type="submit" class="btn btn-gradient rounded-circle p-2 d-flex align-items-center justify-content-center" style="width: 32px; height: 32px;" title="Add to Cart">
+                                                <i class="bi bi-plus-lg text-white"></i>
+                                            </button>
+                                        </form>
+                                    </div>
                                 </div>
-                                <form method="POST" action="{% url 'add_to_cart' m.id %}" class="d-inline">
-                                    {% csrf_token %}
-                                    <button type="submit" class="btn btn-gradient rounded-circle p-2 d-flex align-items-center justify-content-center" style="width: 32px; height: 32px;" title="Add to Cart">
-                                        <i class="bi bi-plus-lg text-white"></i>
-                                    </button>
-                                </form>
-                            </div>
+                            {% empty %}
+                                <div class="col-12 text-secondary small">No meal recommendations available right now.</div>
+                            {% endfor %}
                         </div>
-                    {% endfor %}
-                </div>
+                    </div>
+
+                    <div>
+                        <h3 class="h6 mb-2">Suggested Messes</h3>
+                        <div class="row g-3">
+                            {% for mess in recommended_messes %}
+                                <div class="col-md-6">
+                                    <div class="p-3 bg-body-tertiary rounded-4 border">
+                                        <div class="d-flex justify-content-between align-items-center">
+                                            <div>
+                                                <h4 class="h6 mb-1">{{ mess.mess_name }}</h4>
+                                                <span class="text-secondary small">{{ mess.location_name }} • {{ mess.diet_type|title }}</span>
+                                            </div>
+                                            <a href="{% url 'mess_detail' mess.id %}" class="btn btn-outline-primary btn-sm rounded-pill">View</a>
+                                        </div>
+                                    </div>
+                                </div>
+                            {% empty %}
+                                <div class="col-12 text-secondary small">No mess recommendations available right now.</div>
+                            {% endfor %}
+                        </div>
+                    </div>
+                {% else %}
+                    <p class="text-secondary mb-0">We do not have enough history yet, so we are showing popular choices.</p>
+                {% endif %}
             </div>
-            {% endif %}
         </div>
 
         <!-- Sidebar Widgets: Wallet, Complaints, Invoice PDF -->
         <div class="col-lg-4">
+            <!-- AI Insights Widget -->
+            <div class="card glass-card p-4 border-0 mb-4 stat-card">
+                <h2 class="h5 mb-3"><i class="bi bi-stars text-warning me-2"></i>AI Insights</h2>
+                {% if insights.summary %}
+                    <div class="p-3 bg-warning-subtle border border-warning-subtle text-warning rounded-4 mb-3">
+                        <div class="small fw-bold mb-1">Personal summary</div>
+                        <div class="small">{{ insights.summary }}</div>
+                    </div>
+                {% endif %}
+                {% if insights.favorite_meals %}
+                    <div class="small text-secondary mb-2">Favourite meals</div>
+                    <ul class="list-unstyled mb-0 small">
+                        {% for meal in insights.favorite_meals %}
+                            <li class="d-flex justify-content-between border-bottom py-2">
+                                <span>{{ meal.name }}</span>
+                                <span class="fw-bold text-primary">{{ meal.count }}x</span>
+                            </li>
+                        {% endfor %}
+                    </ul>
+                {% else %}
+                    <p class="text-secondary small mb-0">Your meal history will appear here once you place an order.</p>
+                {% endif %}
+            </div>
+
+            <!-- Weather Widget -->
+            <div class="card glass-card p-4 border-0 mb-4 stat-card">
+                <h2 class="h5 mb-3"><i class="bi bi-cloud-sun text-info me-2"></i>Today's Weather</h2>
+                {% if weather and weather.available %}
+                    <div class="p-3 bg-info-subtle border border-info-subtle text-info rounded-4 text-center">
+                        <div class="small text-uppercase fw-bold">{{ weather.city }}</div>
+                        <h3 class="fw-bold mb-1">{{ weather.temperature }}°C</h3>
+                        <div class="small">{{ weather.description }}</div>
+                    </div>
+                {% else %}
+                    <div class="p-3 bg-body-tertiary border rounded-4 text-center text-secondary">
+                        <i class="bi bi-cloud-slash me-1"></i> Weather unavailable
+                    </div>
+                {% endif %}
+                {% if weather_recommendations.message %}
+                    <div class="mt-3 p-3 bg-primary-subtle border border-primary-subtle text-primary rounded-4">
+                        <div class="small fw-bold mb-1">Weather-aware suggestions</div>
+                        <div class="small">{{ weather_recommendations.message }}</div>
+                    </div>
+                {% endif %}
+            </div>
+
             <!-- Wallet Widget -->
-            <div class="card glass-card p-4 border-0 mb-4">
+            <div class="card glass-card p-4 border-0 mb-4 stat-card">
                 <h2 class="h5 mb-3"><i class="bi bi-wallet2 text-success me-2"></i>My Wallet</h2>
                 <div class="p-3 bg-success-subtle border border-success-subtle text-success rounded-4 mb-3 text-center">
                     <span class="small d-block mb-1 opacity-75">Combined Balance</span>
@@ -181,7 +290,7 @@
             </div>
 
             <!-- Download Invoices PDF -->
-            <div class="card glass-card p-4 border-0 mb-4">
+            <div class="card glass-card p-4 border-0 mb-4 section-card">
                 <h2 class="h5 mb-3"><i class="bi bi-file-earmark-pdf text-danger me-2"></i>Receipts & Invoices</h2>
                 {% if transactions %}
                     <ul class="list-unstyled mb-0 small">
@@ -205,7 +314,7 @@
             </div>
 
             <!-- Complaint Log -->
-            <div class="card glass-card p-4 border-0">
+            <div class="card glass-card p-4 border-0 section-card">
                 <h2 class="h5 mb-3"><i class="bi bi-chat-left-text text-warning me-2"></i>Support Tickets</h2>
                 {% if complaints %}
                     <ul class="list-unstyled mb-0 small">
@@ -227,7 +336,7 @@
                         {% endfor %}
                     </ul>
                 {% else %}
-                    <p class="text-secondary small text-center mb-0">No active complaints.</p>
+                    <div class="empty-state"><p class="text-secondary small text-center mb-0">No active complaints.</p></div>
                 {% endif %}
             </div>
         </div>

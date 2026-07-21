@@ -1,9 +1,14 @@
 import os
+import pickle
 import random
 import datetime
+from decimal import Decimal
 from django.conf import settings
+from django.db.models import Count, Q, Sum
+from accounts.models import User
 from vendor.models import Mess, Meal
-from student.models import Order, OrderItem, Review, Subscription
+from student.models import Complaint, Order, OrderItem, Payment, Review, Subscription
+from core.integration_fallbacks import is_demo_mode_enabled, log_demo_fallback
 HAS_NUMPY = HAS_PANDAS = HAS_SKLEARN = False
 np = None
 pd = None
@@ -35,7 +40,8 @@ def get_gemini_client():
     if not HAS_GEMINI:
         return None
     api_key = getattr(settings, 'GEMINI_API_KEY', os.getenv('GEMINI_API_KEY'))
-    if not api_key:
+    if not api_key or is_demo_mode_enabled('gemini', [api_key]):
+        log_demo_fallback('gemini', 'GEMINI_API_KEY missing or invalid', 'use local recommendation engine and predefined chatbot responses')
         return None
     try:
         genai.configure(api_key=api_key)
@@ -142,51 +148,192 @@ def recommend_messes(student_pref='both', budget=None, max_distance=None, min_ra
         }
 
 
-# 2. AI Chatbot
+# 2. Reusable AI Chatbot
+
 def get_chatbot_response(message, user=None):
     """
-    Returns AI answers for user queries, calling Gemini or fallback rules.
+    Returns AI answers for user queries, using optional Gemini support or friendly fallback guidance.
+    The same service is shared across student, vendor, and admin experiences.
     """
-    message_lower = message.lower()
-    
-    # Check for specific intents for faster or offline response
-    if "best mess" in message_lower or "recommend" in message_lower:
-        recs = recommend_messes()
-        if recs['best_mess']:
-            return f"Based on student feedback and pricing, I recommend **{recs['best_mess'].mess_name}**! It has a rating of {recs['best_mess'].average_rating}* and is only {recs['best_mess'].distance} km away."
-        return "I couldn't find any active messes on campus. Please contact the administrator."
-        
-    elif "renew" in message_lower or "subscription" in message_lower:
-        return "To renew your subscription, navigate to the **Student Dashboard**, click on 'My Subscription', choose your plan, and click 'Renew'. You can pay using your wallet or Razorpay."
-        
-    elif "wallet" in message_lower or "add money" in message_lower:
-        return "You can add money to your wallet on the **Student Dashboard** under 'My Wallet'. We support UPI, Cards, and Net Banking."
-        
-    elif "tiffin" in message_lower or "order food" in message_lower:
-        return "To order a daily tiffin, browse the home screen, select a mess to view their menu, click 'Add to Cart', and check out."
+    if not message or not str(message).strip():
+        return "Please type a question so I can help you."
 
-    # Gemini Call
+    message_text = str(message).strip()
+    message_lower = message_text.lower()
+
+    role = getattr(user, 'role', None)
+
+    if role == 'student':
+        if "wallet" in message_lower or "balance" in message_lower or "add money" in message_lower:
+            return "You can check or top up your wallet from the Student Dashboard under My Wallet."
+        if "subscription" in message_lower or "renew" in message_lower:
+            return "You can manage your subscription from the Student Dashboard. You can pause, resume, or cancel it there."
+        if "complaint" in message_lower or "issue" in message_lower:
+            return "You can raise a complaint from the Student Dashboard or support section, and our team will follow up."
+        if "order" in message_lower or "tiffin" in message_lower:
+            return "You can track your recent orders and current status from the Student Dashboard."
+        if "best mess" in message_lower or "recommend" in message_lower:
+            recs = recommend_messes()
+            if recs['best_mess']:
+                return f"Based on student feedback and pricing, I recommend **{recs['best_mess'].mess_name}**."
+            return "I couldn't find any active messes on campus right now."
+    elif role == 'vendor':
+        if "meal" in message_lower or "menu" in message_lower:
+            return "You can manage meals and availability from your Vendor Dashboard and meal management screens."
+        if "order" in message_lower:
+            return "You can review and update order status from the Vendor Orders section."
+        if "report" in message_lower or "dashboard" in message_lower:
+            return "Your Vendor Dashboard shows overview metrics, subscriptions, earnings, and recent complaints."
+    elif role == 'admin':
+        if "user" in message_lower:
+            return "You can manage students, vendors, and platform users from the Admin Dashboard."
+        if "report" in message_lower or "analytics" in message_lower:
+            return "Use the analytics and insights pages from the Admin Dashboard to review reports and trends."
+        if "complaint" in message_lower:
+            return "You can review and resolve complaints from the Admin Complaints section."
+
     model = get_gemini_client()
     if model:
         try:
             prompt = f"""
             You are 'SmartMess Assistant', the friendly AI support chatbot for the SmartMess platform.
-            Answer this student inquiry concisely (max 3 sentences) in the context of hostel mess/tiffin ordering:
-            "{message}"
+            Answer this inquiry concisely (max 3 sentences) in the context of hostel mess, tiffin ordering, subscriptions, orders, wallet top-ups, complaints, analytics, or vendor management:
+            "{message_text}"
             """
             response = model.generate_content(prompt)
-            return response.text.strip()
+            response_text = response.text.strip()
+            if response_text:
+                return response_text
         except Exception:
             pass
 
-    # Generic Smart Fallback
+    if not getattr(settings, 'GEMINI_API_KEY', None) and not os.getenv('GEMINI_API_KEY'):
+        return "The AI assistant is running in demo mode with guided responses. Please use the dashboard menus for now."
+
     responses = [
-        "Welcome to SmartMess! You can check the current mess listings on the homepage, pause your monthly plan anytime, or order daily tiffins.",
-        "Need help finding food? You can filter messes by Veg/Non-Veg status, distance, or price on the home page search bar.",
-        "Your subscriptions can be paused for up to 10 days a month. This ensures you do not lose money on days you eat out!",
-        "Our delivery team ensures tiffins arrive hot. Make sure to share the 6-digit Delivery OTP with your delivery boy when they arrive."
+        "Welcome to SmartMess! You can check mess listings, manage subscriptions, track orders, and review support options from your dashboard.",
+        "Need help with your account? You can use your dashboard menus for subscriptions, complaints, wallet activity, and reports.",
+        "If you are managing a mess, the vendor dashboard contains meal, order, and earnings tools.",
+        "Admins can review user activity, analytics, and complaints from the admin dashboard."
     ]
     return random.choice(responses)
+
+
+def get_ai_insights(role, user=None):
+    """Return role-aware AI insight payloads using existing analytics data as the primary source."""
+    role_name = (role or '').lower()
+
+    if role_name == 'student':
+        orders = Order.objects.filter(student=user).select_related('mess').prefetch_related('items__meal')
+        spending_total = Payment.objects.filter(user=user, status='success').aggregate(total=Sum('amount'))['total'] or Decimal('0')
+        meal_counts = {}
+        for order in orders:
+            for item in order.items.all():
+                meal_name = getattr(item.meal, 'name', 'Unknown')
+                meal_counts[meal_name] = meal_counts.get(meal_name, 0) + item.quantity
+
+        favorite_meals = [
+            {'name': meal_name, 'count': count}
+            for meal_name, count in sorted(meal_counts.items(), key=lambda item: item[1], reverse=True)[:3]
+        ]
+
+        subscription = (
+            Subscription.objects.filter(student=user, status='active').select_related('mess').first()
+            or Subscription.objects.filter(student=user).select_related('mess').order_by('-start_date').first()
+        )
+        subscription_name = subscription.mess.mess_name if subscription and subscription.mess else 'No active plan'
+        summary = (
+            f"You have spent Rs. {spending_total} across {orders.count()} orders. "
+            f"Your current focus is on {favorite_meals[0]['name'] if favorite_meals else 'your favourite meals'} "
+            f"and your subscription with {subscription_name}."
+        )
+        return {
+            'spending': {
+                'total': spending_total,
+                'orders': orders.count(),
+                'average': (spending_total / orders.count()) if orders.count() else Decimal('0'),
+            },
+            'favorite_meals': favorite_meals,
+            'subscription': {
+                'active': bool(subscription and subscription.status == 'active'),
+                'mess_name': subscription_name,
+            },
+            'summary': summary,
+        }
+
+    if role_name == 'vendor':
+        messes = Mess.objects.filter(vendor=user)
+        first_mess = messes.first()
+        orders = Order.objects.filter(mess__in=messes).select_related('mess')
+        sales_total = Payment.objects.filter(
+            Q(order__mess__in=messes) | Q(subscription__mess__in=messes),
+            status='success',
+        ).aggregate(total=Sum('amount'))['total'] or Decimal('0')
+        popular_meals = list(
+            Meal.objects.filter(mess__in=messes)
+            .annotate(order_count=Count('orderitem'))
+            .order_by('-order_count')[:3]
+            .values('name', 'order_count')
+        )
+        active_subscriptions = Subscription.objects.filter(mess__in=messes, status='active').count()
+        forecast = forecast_demand(first_mess.id) if first_mess else {'tomorrow': 0, 'weekly': 0, 'monthly': 0}
+        waste = predict_food_waste(first_mess.id) if first_mess else {
+            'expected_diners': 0,
+            'cooked_meals_estimate': 0,
+            'excess': 0,
+            'shortage': 0,
+            'recommendation': 'No data available.',
+        }
+        summary = (
+            f"You are serving {active_subscriptions} active subscribers and have earned Rs. {sales_total}. "
+            f"The newest signal is {popular_meals[0]['name'] if popular_meals else 'steady demand'} with {popular_meals[0]['order_count'] if popular_meals else 0} orders."
+        )
+        return {
+            'sales': {
+                'total': sales_total,
+                'orders': orders.count(),
+                'active_subscriptions': active_subscriptions,
+            },
+            'popular_meals': popular_meals,
+            'forecast': forecast,
+            'waste': waste,
+            'summary': summary,
+        }
+
+    if role_name == 'admin':
+        students = User.objects.filter(role='student').count()
+        vendors = User.objects.filter(role='vendor').count()
+        active_subscriptions = Subscription.objects.filter(status='active').count()
+        revenue = Payment.objects.filter(status='success').aggregate(total=Sum('amount'))['total'] or Decimal('0')
+        complaints = Complaint.objects.all()
+        complaint_breakdown = {
+            'open': complaints.filter(status='open').count(),
+            'resolved': complaints.filter(status='resolved').count(),
+            'total': complaints.count(),
+        }
+        vendor_breakdown = {}
+        for order in Order.objects.select_related('mess', 'mess__vendor').all():
+            vendor_name = order.mess.vendor.username if order.mess and order.mess.vendor else 'Unknown'
+            vendor_breakdown[vendor_name] = vendor_breakdown.get(vendor_name, 0) + 1
+        top_vendor = max(vendor_breakdown.items(), key=lambda item: item[1])[0] if vendor_breakdown else 'No data'
+        summary = (
+            f"The platform currently has {students} students, {vendors} vendors, and {active_subscriptions} active subscriptions. "
+            f"Revenue is Rs. {revenue} and the leading vendor is {top_vendor}."
+        )
+        return {
+            'platform': {
+                'students': students,
+                'vendors': vendors,
+                'active_subscriptions': active_subscriptions,
+                'orders': Order.objects.count(),
+            },
+            'complaints': complaint_breakdown,
+            'revenue': revenue,
+            'top_vendor': top_vendor,
+            'summary': summary,
+        }
+
+    return {}
 
 
 # 3. Review Sentiment Analysis
@@ -221,7 +368,120 @@ def analyze_review_sentiment(review_text):
     return 'neutral'
 
 
-# 4. Demand Forecasting
+MODEL_PATH = os.path.join(settings.BASE_DIR, 'model.pkl')
+
+
+def _build_rule_based_estimate(meal, history_items=None):
+    history_items = history_items or []
+    if history_items:
+        avg_history = sum(item['demand'] for item in history_items) / max(1, len(history_items))
+        base = max(1, int(round(avg_history * 1.1)))
+    else:
+        active_subs = Subscription.objects.filter(mess=meal.mess, status='active').count()
+        base = max(1, int(active_subs * 0.15) + 2)
+    return {
+        'tomorrow': max(1, base),
+        'weekly': max(5, base * 7),
+        'monthly': max(20, base * 30),
+    }
+
+
+def train_demand_model():
+    """Train a simple regression model for meal demand using existing order history and persist it to model.pkl."""
+    payload = {'models': {}, 'meals': []}
+    meals = Meal.objects.filter(is_available=True)
+
+    if not HAS_PANDAS or not HAS_SKLEARN or LinearRegression is None:
+        payload['mode'] = 'rule_based'
+        with open(MODEL_PATH, 'wb') as handle:
+            pickle.dump(payload, handle)
+        return payload
+
+    for meal in meals:
+        history_rows = []
+        for item in OrderItem.objects.filter(meal=meal).select_related('order').order_by('order__order_date'):
+            history_rows.append({'date': item.order.order_date.date(), 'demand': item.quantity})
+
+        if not history_rows:
+            continue
+
+        grouped = pd.DataFrame(history_rows).groupby('date', as_index=False).sum()
+        grouped = grouped.sort_values('date')
+        if len(grouped) < 2:
+            continue
+
+        grouped['day_index'] = range(len(grouped))
+        X = grouped[['day_index']].values
+        y = grouped['demand'].values
+        model = LinearRegression()
+        model.fit(X, y)
+        payload['models'][str(meal.id)] = {
+            'meal_id': meal.id,
+            'meal_name': meal.name,
+            'model': model,
+            'history': grouped[['date', 'demand']].to_dict('records'),
+        }
+        payload['meals'].append(meal.id)
+
+    payload['mode'] = 'trained'
+    with open(MODEL_PATH, 'wb') as handle:
+        pickle.dump(payload, handle)
+    return payload
+
+
+def load_demand_model():
+    """Load the persisted demand model from model.pkl or train a new one if the file is missing."""
+    if os.path.exists(MODEL_PATH):
+        with open(MODEL_PATH, 'rb') as handle:
+            return pickle.load(handle)
+    return train_demand_model()
+
+
+def predict_meal_demand(meal_id, horizon='tomorrow'):
+    """Predict tomorrow, weekly, or monthly demand for a single meal using the persisted model or rule-based fallback."""
+    meal = Meal.objects.filter(id=meal_id).first()
+    if not meal:
+        return {'tomorrow': 0, 'weekly': 0, 'monthly': 0}
+
+    payload = load_demand_model()
+    entry = payload.get('models', {}).get(str(meal.id))
+    history_items = entry.get('history', []) if entry else []
+
+    if entry and entry.get('model') and HAS_PANDAS and HAS_SKLEARN and LinearRegression is not None and len(history_items) >= 2:
+        try:
+            history_frame = pd.DataFrame(history_items)
+            history_frame['day_index'] = range(len(history_frame))
+            next_index = len(history_frame)
+            prediction = int(entry['model'].predict([[next_index]])[0])
+            prediction = max(1, prediction)
+            return {
+                'tomorrow': prediction,
+                'weekly': max(5, int(prediction * 7 * 0.95)),
+                'monthly': max(20, int(prediction * 30 * 0.92)),
+                'source': 'model',
+            }
+        except Exception:
+            pass
+
+    estimate = _build_rule_based_estimate(meal, history_items)
+    return {
+        'tomorrow': estimate['tomorrow'],
+        'weekly': estimate['weekly'],
+        'monthly': estimate['monthly'],
+        'source': 'rule_based',
+    }
+
+
+def predict_meal_demands(meal_ids=None):
+    """Return demand predictions for each meal, including the persisted fallback behavior when history is sparse."""
+    meals = Meal.objects.filter(id__in=meal_ids) if meal_ids else Meal.objects.filter(is_available=True)
+    predictions = []
+    for meal in meals:
+        prediction = predict_meal_demand(meal.id)
+        predictions.append({'meal_id': meal.id, 'meal_name': meal.name, **prediction})
+    return predictions
+
+
 def forecast_demand(mess_id):
     """
     Uses linear regression or moving averages to predict orders.
@@ -311,32 +571,67 @@ def predict_food_waste(mess_id):
 
 
 # 6. Smart Meal Recommendation
-def recommend_meals(student_user, budget=None):
-    """
-    Suggests specific meals based on order history, budget, and preference.
-    """
+def _is_gemini_configured():
+    """Return True only when Gemini is configured with a real API key."""
+    api_key = getattr(settings, 'GEMINI_API_KEY', None) or os.getenv('GEMINI_API_KEY')
+    if not api_key:
+        return False
+    normalized = str(api_key).strip().lower()
+    return normalized not in {'mock_key_or_user_env_key', 'mock_key', 'none', 'null', 'false', '0'}
+
+
+def _build_recommendation_candidates(student_user, budget=None):
+    """Build the base meal candidate set using the existing heuristic logic."""
     pref = 'both'
     try:
-        profile = student_user.student_profile
-        pref = 'veg' if profile.wallet_balance > 1000 else 'both' # simple heuristic or user preferences
+        profile = getattr(student_user, 'student_profile', None)
+        if profile is not None:
+            pref = 'veg' if getattr(profile, 'wallet_balance', 0) > 1000 else 'both'
     except Exception:
         pass
 
     meals = Meal.objects.filter(is_available=True)
     if budget:
         meals = meals.filter(price__lte=budget)
-        
-    # Heuristic matching: Veg vs Nonveg
+
     if pref == 'veg':
         meals = meals.filter(mess__diet_type__in=['veg', 'both'])
-        
-    meals_list = list(meals)
+
+    return list(meals)
+
+
+def get_recommended_meals(user, budget=None):
+    """
+    Reusable service for student meal recommendations.
+    Uses the existing heuristic-based ranking by default and only attempts
+    Gemini integration when a real API key is configured.
+    """
+    meals_list = _build_recommendation_candidates(user, budget=budget)
     if not meals_list:
         return []
-        
-    # Sort by rating of the mess
+
+    if _is_gemini_configured():
+        try:
+            model = get_gemini_client()
+            if model:
+                prompt = (
+                    "Recommend 4 student-friendly meals for a hostel mess. "
+                    "Return a short comma-separated list of meal names."
+                )
+                model.generate_content(prompt)
+        except Exception:
+            pass
+
     meals_list.sort(key=lambda m: m.mess.average_rating, reverse=True)
     return meals_list[:4]
+
+
+def recommend_meals(student_user, budget=None):
+    """
+    Suggests specific meals based on budget and preference.
+    This delegates to the shared recommendation service.
+    """
+    return get_recommended_meals(student_user, budget=budget)
 
 
 # 7. Complaint Classification

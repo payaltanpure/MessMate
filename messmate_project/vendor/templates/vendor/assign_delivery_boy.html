@@ -1,0 +1,103 @@
+{% extends "base.html" %}
+
+{% block title %}Assign Delivery Boy - SMARTMESS AI{% endblock %}
+
+{% block content %}
+<div class="container py-4">
+    <div class="row justify-content-center">
+        <div class="col-md-6">
+            <div class="card glass-card border-0 shadow-sm">
+                <div class="card-header bg-gradient border-0 p-4">
+                    <h2 class="h4 mb-0"><i class="bi bi-person-plus me-2 text-primary"></i>Assign Delivery Boy</h2>
+                </div>
+                
+                <div class="card-body p-4">
+                    <!-- Order Details -->
+                    <div class="alert alert-info alert-dismissible fade show" role="alert">
+                        <div class="row mb-2">
+                            <div class="col-6">
+                                <strong>Order #{{ order.id }}</strong>
+                            </div>
+                            <div class="col-6 text-end">
+                                <strong>Rs. {{ order.total_amount }}</strong>
+                            </div>
+                        </div>
+                        <div class="row">
+                            <div class="col-6">
+                                <small class="text-muted">Student: {{ order.student.first_name|default:order.student.username }}</small>
+                            </div>
+                            <div class="col-6">
+                                <small class="text-muted">Mess: {{ order.mess.mess_name }}</small>
+                            </div>
+                        </div>
+                        <hr class="my-2">
+                        <div>
+                            <small><strong>Status:</strong> <span class="badge bg-info">{{ order.get_status_display }}</span></small>
+                        </div>
+                    </div>
+
+                    <!-- Assignment Form -->
+                    <form method="POST" action="{% url 'assign_delivery_boy' order.id %}">
+                        {% csrf_token %}
+                        
+                        <div class="mb-4">
+                            <label for="delivery_boy" class="form-label fw-bold">
+                                <i class="bi bi-person-fill text-primary me-1"></i>Select Delivery Boy
+                            </label>
+                            {% if delivery_boys %}
+                                <select id="delivery_boy" name="delivery_boy" class="form-select form-select-lg rounded-pill" required>
+                                    <option value="">-- Choose a Delivery Boy --</option>
+                                    {% for db in delivery_boys %}
+                                    <option value="{{ db.id }}" 
+                                        {% if order.delivery_boy.id == db.id %}selected{% endif %}>
+                                        {{ db.first_name|default:db.username }} - {{ db.phone|default:"N/A" }}
+                                    </option>
+                                    {% endfor %}
+                                </select>
+                                <small class="text-muted d-block mt-2">
+                                    <i class="bi bi-info-circle me-1"></i>All active delivery boys are listed here.
+                                </small>
+                            {% else %}
+                                <div class="alert alert-warning" role="alert">
+                                    <i class="bi bi-exclamation-triangle me-2"></i>
+                                    <strong>No Active Delivery Boys Available</strong>
+                                    <p class="mb-0 mt-2 small">There are no active delivery boys in the system right now. Please contact the administrator.</p>
+                                </div>
+                                <a href="{% url 'vendor_orders' %}" class="btn btn-outline-secondary rounded-pill w-100">
+                                    <i class="bi bi-arrow-left me-2"></i>Back to Orders
+                                </a>
+                            {% endif %}
+                        </div>
+
+                        {% if delivery_boys %}
+                        <div class="d-grid gap-2">
+                            <button type="submit" class="btn btn-success btn-lg rounded-pill">
+                                <i class="bi bi-check-circle me-2"></i>Assign Delivery Boy
+                            </button>
+                            <a href="{% url 'vendor_orders' %}" class="btn btn-outline-secondary rounded-pill">
+                                <i class="bi bi-x-circle me-2"></i>Cancel
+                            </a>
+                        </div>
+                        {% endif %}
+                    </form>
+
+                    <!-- Current Assignment Info -->
+                    {% if order.delivery_boy %}
+                    <div class="alert alert-success mt-4" role="alert">
+                        <strong><i class="bi bi-check-circle me-2"></i>Currently Assigned To:</strong>
+                        <div class="mt-2">
+                            <p class="mb-1"><strong>{{ order.delivery_boy.first_name|default:order.delivery_boy.username }}</strong></p>
+                            <p class="mb-1 text-muted">{{ order.delivery_boy.phone|default:"N/A" }}</p>
+                            <p class="mb-0 small text-muted">
+                                <i class="bi bi-shield-check me-1"></i>Verification Status: 
+                                <span class="badge bg-success">{{ order.delivery_boy.delivery_profile.get_verification_status_display }}</span>
+                            </p>
+                        </div>
+                    </div>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
